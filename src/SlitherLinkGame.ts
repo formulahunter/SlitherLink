@@ -5,9 +5,13 @@ class SLNode {
 
 class Cell {
 
-    static readonly RADIUS = 15;
+    static RADIUS = 15;
 
-    count: 0 | 1 | 2 | 3 | 4 | 5 | 6 | null = null;
+    //  dx, dy measured from center of hexagon
+    static DX = Cell.RADIUS * Math.sqrt(3) / 2;
+    static DY = 0.5 * Cell.RADIUS;
+
+    count: number | null = null;
     lines: [Line, Line, Line, Line, Line, Line];
 
     private _path: Path2D | null = null;
@@ -21,20 +25,21 @@ class Cell {
             new Line(this, null),
             new Line(this, null)
         ];
+
+        //  assign a count to ~1/3 of all cells
+        if(Math.random() > 2 / 3) {
+            this.count = Math.floor(6 * Math.random());
+        }
     }
 
-    getPath(x: number, y: number): Path2D {
+    getPath(x0: number, y0: number): Path2D {
 
         if(this._path !== null) {
             return this._path;
         }
 
-        const ROOT_3 = Math.sqrt(3);
-        const x0 = x * Cell.RADIUS * ROOT_3;
-        const y0 = y * Cell.RADIUS * 1.5;
-
-        const dx = Cell.RADIUS * ROOT_3 / 2;
-        const dy = 0.5 * Cell.RADIUS;
+        const dx = Cell.DX;
+        const dy = Cell.DY;
 
         let path: Path2D = new Path2D();
 
@@ -321,27 +326,42 @@ class SlitherLinkGame {
 
     draw(ctx: CanvasRenderingContext2D, x0: number, y0: number): void {
 
-        const size = this.rows.length;
-        const half = Math.ceil(size / 2);
-
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-
         //  set the given origin as the center of the board
         ctx.resetTransform();
         ctx.translate(x0, y0);
 
-        //  calculate unit coordinates of each Cell instance
+        //  set line style for drawing cell outlines
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+
+        //  set font size & alignment so that cell numbers align correctly
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'black';
+
+        const size: number = this.rows.length;
+        const half: number = Math.floor(size / 2);
+        const ROOT_3: number = Math.sqrt(3);
+
+        //  calculate nominal coordinates of each Cell instance
         //  draw paths derived by each instance based on those coordinates
+        //  draw cells' non-null count properties (text)
         for(let i = 0; i < size; ++i) {
 
-            let y = i - half;
-            let mid = this.rows[i].length / 2;
+            let y: number = (i - half) * Cell.RADIUS * 1.5;
+            let mid: number = this.rows[i].length / 2;
             for(let j = 0; j < this.rows[i].length; ++j) {
 
-                let x = j - mid - 0.5;
-                // console.log(`(${x}, ${y})`);
-                ctx.stroke(this.rows[i][j].getPath(x + 1, y + 1));
+                let cell: Cell = this.rows[i][j];
+
+                let x: number = (j - mid + 0.5) * Cell.RADIUS * ROOT_3;
+                ctx.stroke(cell.getPath(x, y));
+
+                if(cell.count !== null) {
+                    ctx.beginPath();
+                    ctx.fillText(cell.count.toString(), x, y, Cell.RADIUS);
+                }
             }
         }
 
