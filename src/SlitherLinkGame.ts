@@ -8,15 +8,23 @@ class Cell {
     static RADIUS = 15;
 
     //  dx, dy measured from center of hexagon
-    static DX = Cell.RADIUS * Math.sqrt(3) / 2;
-    static DY = 0.5 * Cell.RADIUS;
+    static DX = Cell.RADIUS * Math.sqrt(3);
+    static DY = Cell.RADIUS * 1.5;
+
+    //  public nominal coordinates (at center of hexagon)
+    x: number;
+    y: number;
 
     count: number | null = null;
     lines: [Line, Line, Line, Line, Line, Line];
 
     private _path: Path2D | null = null;
 
-    constructor() {
+    constructor(x: number, y: number) {
+
+        this.x = x;
+        this.y = y;
+
         this.lines = [
             new Line(this, null),
             new Line(null, this),
@@ -32,14 +40,17 @@ class Cell {
         }
     }
 
-    getPath(x0: number, y0: number): Path2D {
+    getPath(): Path2D {
 
         if(this._path !== null) {
             return this._path;
         }
 
-        const dx = Cell.DX;
-        const dy = Cell.DY;
+        //  declare local variables for readability & performance
+        const x0 = this.x;
+        const y0 = this.y;
+        const dx = Cell.DX / 2;
+        const dy = Cell.DY / 3;
 
         let path: Path2D = new Path2D();
 
@@ -121,10 +132,11 @@ class SlitherLinkGame {
 
         /* 1. generate unlinked cells in every position */
         //  start with the single middle row
-        const mid: number = Math.ceil(size / 2) - 1;
+        const mid: number = Math.floor(size / 2);
         this.rows[mid] = new Array(size);
         for(let i = 0; i < size; ++i) {
-            this.rows[mid][i] = new Cell();
+            let x: number = (i - size / 2 + 0.5) * Cell.DX;
+            this.rows[mid][i] = new Cell(x, 0);
         }
 
         //  width is the number of cells in the current row(s)
@@ -140,10 +152,16 @@ class SlitherLinkGame {
             this.rows[mid - height] = new Array(width);
             this.rows[mid + height] = new Array(width);
 
+            let y1 = -height * Cell.DY;
+            let y2 = height * Cell.DY;
+            let half: number = width / 2;
+
             for(let i = 0; i < width; ++i) {
 
-                let cell1: Cell = new Cell();
-                let cell2: Cell = new Cell();
+                let x: number = (i - half + 0.5) * Cell.DX;
+
+                let cell1: Cell = new Cell(x, y1);
+                let cell2: Cell = new Cell(x, y2);
 
                 //  link top/bottom left lines (always defined) of cell1 & cell2
                 cell1.lines[3] = this.rows[mid - height + 1][i].lines[0];
@@ -341,26 +359,20 @@ class SlitherLinkGame {
         ctx.fillStyle = 'black';
 
         const size: number = this.rows.length;
-        const half: number = Math.floor(size / 2);
-        const ROOT_3: number = Math.sqrt(3);
 
         //  calculate nominal coordinates of each Cell instance
         //  draw paths derived by each instance based on those coordinates
         //  draw cells' non-null count properties (text)
         for(let i = 0; i < size; ++i) {
 
-            let y: number = (i - half) * Cell.RADIUS * 1.5;
-            let mid: number = this.rows[i].length / 2;
             for(let j = 0; j < this.rows[i].length; ++j) {
 
                 let cell: Cell = this.rows[i][j];
-
-                let x: number = (j - mid + 0.5) * Cell.RADIUS * ROOT_3;
-                ctx.stroke(cell.getPath(x, y));
+                ctx.stroke(cell.getPath());
 
                 if(cell.count !== null) {
                     ctx.beginPath();
-                    ctx.fillText(cell.count.toString(), x, y, Cell.RADIUS);
+                    ctx.fillText(cell.count.toString(), cell.x, cell.y, Cell.RADIUS);
                 }
             }
         }
