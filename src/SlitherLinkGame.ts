@@ -283,6 +283,34 @@ class SlitherLinkGame {
             ++height;
         }
     }
+
+    draw(ctx: CanvasRenderingContext2D, x0: number, y0: number): void {
+
+        console.log('test');
+
+        //  set the given origin as the center of the board
+        ctx.resetTransform();
+        ctx.translate(x0, y0);
+
+        //  draw a single hexagon
+        const R = 10;
+        const ROOT_3 = Math.sqrt(3);
+        ctx.beginPath();
+        ctx.moveTo(R * ROOT_3 / 2, 5);
+        ctx.lineTo(R * ROOT_3 / 2, -5);
+        ctx.lineTo(0, -10);
+        ctx.lineTo(-R * ROOT_3 / 2, -5);
+        ctx.lineTo(-R * ROOT_3 / 2, 5);
+        ctx.lineTo(0, 10);
+        ctx.closePath();
+
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        //  reset the transform
+        ctx.resetTransform();
+    }
 }
 
 // export default SlitherLinkGame;

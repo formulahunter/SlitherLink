@@ -10,4 +10,5 @@
     if(ctx === null) {
         throw new Error('unable to get canvas rendering context');
     }
+    game.draw(ctx, 400, 300);
 // }
