@@ -1,6 +1,6 @@
 // function main(): void {
     // @ts-ignore
-    let game = new SlitherLinkGame(5);
+    let game = new SlitherLinkGame(23);
     let canvas: HTMLElement | null = document.getElementById('game');
     if(canvas === null || !(canvas instanceof HTMLCanvasElement)) {
         throw new Error('missing or invalid canvas element');

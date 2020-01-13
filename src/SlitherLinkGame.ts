@@ -5,8 +5,12 @@ class SLNode {
 
 class Cell {
 
+    static readonly RADIUS = 15;
+
     count: 0 | 1 | 2 | 3 | 4 | 5 | 6 | null = null;
     lines: [Line, Line, Line, Line, Line, Line];
+
+    private _path: Path2D | null = null;
 
     constructor() {
         this.lines = [
@@ -17,6 +21,36 @@ class Cell {
             new Line(this, null),
             new Line(this, null)
         ];
+    }
+
+    getPath(x: number, y: number): Path2D {
+
+        if(this._path !== null) {
+            return this._path;
+        }
+
+        const ROOT_3 = Math.sqrt(3);
+        const x0 = x * Cell.RADIUS * ROOT_3;
+        const y0 = y * Cell.RADIUS * 1.5;
+
+        const dx = Cell.RADIUS * ROOT_3 / 2;
+        const dy = 0.5 * Cell.RADIUS;
+
+        let path: Path2D = new Path2D();
+
+        // path.arc(x0, y0, 1, 0, 2 * Math.PI);
+
+        path.moveTo(x0 + dx, y0 + dy);
+        path.lineTo(x0 + dx, y0 - dy);
+        path.lineTo(x0, y0 - 2 * dy);
+        path.lineTo(x0 - dx, y0 - dy);
+        path.lineTo(x0 - dx, y0 + dy);
+        path.lineTo(x0, y0 + 2 * dy);
+        path.closePath();
+
+        this._path = path;
+        
+        return path;
     }
 }
 
@@ -66,7 +100,7 @@ class SlitherLinkGame {
 
         //  size must be odd
         //  add 1 if even number given
-        if(size % 2 !== 0) {
+        if(size % 2 === 0) {
             size += 1;
         }
 
@@ -78,10 +112,11 @@ class SlitherLinkGame {
         //  the total number of rows will be equal to the given width of the
         //  middle row
         this.rows = new Array(Math.ceil(size));
+        console.log(size, this.rows.length);
 
         /* 1. generate unlinked cells in every position */
         //  start with the single middle row
-        const mid: number = Math.ceil(size / 2);
+        const mid: number = Math.ceil(size / 2) - 1;
         this.rows[mid] = new Array(size);
         for(let i = 0; i < size; ++i) {
             this.rows[mid][i] = new Cell();
@@ -89,7 +124,7 @@ class SlitherLinkGame {
 
         //  width is the number of cells in the current row(s)
         //  height is the number of rows *above/below the middle row*
-        let width: number = size;
+        let width: number = size - 1;
         let height: number = 1;
 
         //  width decreases while height increases
@@ -146,7 +181,7 @@ class SlitherLinkGame {
 
         //  reassign the top-right, top-left, and left lines of each cell
         //  above/below the middle row
-        width = size;
+        width = size - 1;
         height = 1;
         while(width > height) {
 
@@ -252,7 +287,7 @@ class SlitherLinkGame {
 
              * indicates link is only made for the first cell in a row
          */
-        width = size;
+        width = size - 1;
         height = 1;
         while(width > height) {
 
@@ -286,27 +321,29 @@ class SlitherLinkGame {
 
     draw(ctx: CanvasRenderingContext2D, x0: number, y0: number): void {
 
-        console.log('test');
+        const size = this.rows.length;
+        const half = Math.ceil(size / 2);
+
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
 
         //  set the given origin as the center of the board
         ctx.resetTransform();
         ctx.translate(x0, y0);
 
-        //  draw a single hexagon
-        const R = 10;
-        const ROOT_3 = Math.sqrt(3);
-        ctx.beginPath();
-        ctx.moveTo(R * ROOT_3 / 2, 5);
-        ctx.lineTo(R * ROOT_3 / 2, -5);
-        ctx.lineTo(0, -10);
-        ctx.lineTo(-R * ROOT_3 / 2, -5);
-        ctx.lineTo(-R * ROOT_3 / 2, 5);
-        ctx.lineTo(0, 10);
-        ctx.closePath();
+        //  calculate unit coordinates of each Cell instance
+        //  draw paths derived by each instance based on those coordinates
+        for(let i = 0; i < size; ++i) {
 
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+            let y = i - half;
+            let mid = this.rows[i].length / 2;
+            for(let j = 0; j < this.rows[i].length; ++j) {
+
+                let x = j - mid - 0.5;
+                // console.log(`(${x}, ${y})`);
+                ctx.stroke(this.rows[i][j].getPath(x + 1, y + 1));
+            }
+        }
 
         //  reset the transform
         ctx.resetTransform();
