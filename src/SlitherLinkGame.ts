@@ -40,6 +40,17 @@ class Cell {
         }
     }
 
+    draw(ctx: CanvasRenderingContext2D): void {
+
+        ctx.stroke(this.getPath());
+
+        if(this.count !== null) {
+            ctx.beginPath();
+            //  not sure why but characters look just a hair too high when drawn
+            //  at this.y, so adding 1 to lower them
+            ctx.fillText(this.count.toString(), this.x, this.y + 1, Cell.RADIUS);
+        }
+    }
     getPath(): Path2D {
 
         if(this._path !== null) {
@@ -360,20 +371,11 @@ class SlitherLinkGame {
 
         const size: number = this.rows.length;
 
-        //  calculate nominal coordinates of each Cell instance
-        //  draw paths derived by each instance based on those coordinates
-        //  draw cells' non-null count properties (text)
+        //  pass the drawing context to each cell to draw their outlines and
+        //  counts
         for(let i = 0; i < size; ++i) {
-
             for(let j = 0; j < this.rows[i].length; ++j) {
-
-                let cell: Cell = this.rows[i][j];
-                ctx.stroke(cell.getPath());
-
-                if(cell.count !== null) {
-                    ctx.beginPath();
-                    ctx.fillText(cell.count.toString(), cell.x, cell.y, Cell.RADIUS);
-                }
+                this.rows[i][j].draw(ctx);
             }
         }
 
