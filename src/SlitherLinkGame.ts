@@ -31,15 +31,21 @@ class SlitherLinkGame {
             size += 1;
         }
 
+        //  the total number of rows will be equal to the given width of the
+        //  middle row
+        this.rows = new Array(Math.ceil(size));
+        this.generateRandom(size);
+
+        //  draw the initial board
+        this.draw(400, 300);
+    }
+
+    private generateRandom(size: number) {
+
         //  generate the game board
         //  1. generate unlinked cells in every position
         //  2. link cells by their shared lines
         //  3. link lines by their shared nodes
-
-        //  the total number of rows will be equal to the given width of the
-        //  middle row
-        this.rows = new Array(Math.ceil(size));
-        console.log(size, this.rows.length);
 
         /* 1. generate unlinked cells in every position */
         //  start with the single middle row
@@ -252,8 +258,6 @@ class SlitherLinkGame {
             ++height;
         }
 
-        //  draw the initial board
-        this.draw(400, 300);
     }
 
     draw(x0: number, y0: number): void {
