@@ -15,6 +15,8 @@ class Cell {
     count: number | null = null;
     lines: [Line, Line, Line, Line, Line, Line];
 
+    //  true while the mouse is above this specific cell
+    mouse: boolean = false;
     private _path: Path2D | null = null;
 
     constructor(x: number, y: number) {
@@ -39,8 +41,22 @@ class Cell {
 
     draw(ctx: CanvasRenderingContext2D): void {
 
-        ctx.stroke(this.getPath());
+        let path: Path2D = this.getPath();
 
+        //  highlight the cell under the mouse
+        if(this.mouse) {
+            //  save() and restore() ensure that the fill color is reverted to
+            //  its previous value
+            ctx.save();
+            ctx.fillStyle = 'lightgray';
+            ctx.fill(path);
+            ctx.restore();
+        }
+
+        //  draw the outline
+        ctx.stroke(path);
+
+        //  print text centered in the cell if it has a count constraint
         if(this.count !== null) {
             ctx.beginPath();
             //  not sure why but characters look just a hair too high when drawn

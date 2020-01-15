@@ -257,7 +257,38 @@ class SlitherLinkGame {
             --width;
             ++height;
         }
+    }
+    handleMouseMove(ev: MouseEvent): void {
 
+        //  ts type narrowing to use offsetTop/Left properties
+        if(!(ev.target instanceof HTMLElement)) {
+            throw new Error(`unrecognized event target: ${ev.target}`);
+        }
+
+        //  this only works because we know the canvas's offset parent is the
+        //  document body
+        //  climbing the offsetParent hierarchy in typescript is a chore because
+        //  offsetParent is a property of HTMLElement but its type is Element
+        let x: number = ev.clientX - ev.target.offsetLeft - window.scrollX;
+        let y: number = ev.clientY - ev.target.offsetTop - window.scrollY;
+
+        //  identify the cell under the mouse, if any
+        //  there is probably a better way to do this - shouldn't have to loop
+        //  over so many cells each time mousemove fires (which can easily
+        //  happen dozens of times per second)
+        this.ctx.translate(400, 300);
+        for(let row of this.rows) {
+            for(let cell of row) {
+                cell.mouse = this.ctx.isPointInPath(cell.getPath(), x, y);
+            }
+        }
+        this.ctx.resetTransform();
+
+        //  redraw the board
+        //  it's probably a good idea to rework this process so that just the
+        //  region surrounding cells that change are re-drawn (instead of the
+        //  entire canvas)
+        this.draw(400, 300);
     }
 
     draw(x0: number, y0: number): void {
