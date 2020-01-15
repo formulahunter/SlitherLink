@@ -50,7 +50,7 @@ class Cell {
         return line.cells[1 - line.cells.indexOf(this)];
     }
 
-    draw(ctx: CanvasRenderingContext2D): void {
+    draw(ctx: CanvasRenderingContext2D, text?: string): void {
 
         let path: Path2D = this.getPath();
 
@@ -71,11 +71,16 @@ class Cell {
         ctx.stroke(path);
 
         //  print text centered in the cell if it has a count constraint
-        if(this.count !== null) {
-            ctx.beginPath();
+        // if(this.count !== null) {
+        if(text !== undefined) {
+            ctx.save();
+            ctx.fillStyle = CSSColor.black;
+            // ctx.beginPath();
             //  not sure why but characters look just a hair too high when drawn
             //  at this.y, so adding 1 to lower them
-            ctx.fillText(this.count.toString(), this.x, this.y + 1, Cell.RADIUS);
+            // ctx.fillText(this.count.toString(), this.x, this.y + 1, Cell.RADIUS);
+            ctx.fillText(text, this.x, this.y + 1, Cell.RADIUS);
+            ctx.restore();
         }
     }
     getPath(): Path2D {

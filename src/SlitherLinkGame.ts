@@ -333,7 +333,7 @@ class SlitherLinkGame {
         ctx.fillStyle = CSSColor.lightgreen;
         if(hover !== null) {
             for(let i = 0; i < 6; ++i) {
-                hover.getNeighbor(hover.lines[i])?.draw(ctx);
+                hover.getNeighbor(hover.lines[i])?.draw(ctx, i.toString());
             }
         }
         ctx.restore();
