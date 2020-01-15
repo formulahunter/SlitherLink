@@ -1,4 +1,5 @@
 import Cell from './Cell.js';
+import CSSColor from './CSSColor.js';
 
 class SlitherLinkGame {
 
@@ -303,14 +304,14 @@ class SlitherLinkGame {
         ctx.translate(x0, y0);
 
         //  set line style for drawing cell outlines
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = CSSColor.black;
         ctx.lineWidth = 1;
 
         //  set font size & alignment so that cell numbers align correctly
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = CSSColor.black;
 
         const size: number = this.rows.length;
 

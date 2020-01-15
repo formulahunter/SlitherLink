@@ -1,3 +1,4 @@
+import CSSColor from './CSSColor.js';
 import Line from './Line.js';
 
 class Cell {
@@ -48,7 +49,7 @@ class Cell {
             //  save() and restore() ensure that the fill color is reverted to
             //  its previous value
             ctx.save();
-            ctx.fillStyle = 'lightgray';
+            ctx.fillStyle = CSSColor.green;
             ctx.fill(path);
             ctx.restore();
         }
