@@ -77,35 +77,8 @@ class SlitherLinkGame {
             for(let i = 0; i < width; ++i) {
 
                 let x: number = (i - half + 0.5) * Cell.DX;
-
-                let cell1: Cell = new Cell(x, y1);
-                let cell2: Cell = new Cell(x, y2);
-
-                //  link top/bottom left lines (always defined) of cell1 & cell2
-                cell1.lines[3] = this.rows[mid - height + 1][i].lines[0];
-                cell1.lines[3].cells[1] = cell1;
-                cell2.lines[5] = this.rows[mid + height - 1][i].lines[2];
-                cell2.lines[5].cells[0] = cell2;
-
-                //  link left lines of cell1 & cell2 (undefined for the first
-                //  cell in a row)
-                if(i > 0) {
-                    cell1.lines[4] = this.rows[mid - height][i - 1].lines[1];
-                    cell1.lines[4].cells[0] = cell1;
-                    cell2.lines[4] = this.rows[mid + height][i - 1].lines[1];
-                    cell2.lines[4].cells[0] = cell2;
-                }
-                //  link the top/bottom right lines (undefined for the last
-                //  cell in a row)
-                if(i < width - 1) {
-                    cell1.lines[2] = this.rows[mid - height + 1][i + 1].lines[5];
-                    cell1.lines[2].cells[1] = cell1;
-                    cell2.lines[0] = this.rows[mid + height - 1][i + 1].lines[3];
-                    cell2.lines[0].cells[0] = cell2;
-                }
-
-                this.rows[mid - height][i] = cell1;
-                this.rows[mid + height][i] = cell2;
+                this.rows[mid - height][i] = new Cell(x, y1);
+                this.rows[mid + height][i] = new Cell(x, y2);
             }
 
             --width;
@@ -126,53 +99,47 @@ class SlitherLinkGame {
         height = 1;
         while(width > height) {
 
-            let lowRow: Cell[] = this.rows[mid + height];
             let highRow: Cell[] = this.rows[mid - height];
+            let lowRow: Cell[] = this.rows[mid + height];
             for(let i = 0; i < width; ++i) {
 
                 //  check the "previous" (closer to center) rows
-                let prevLow: Cell[] = this.rows[mid + height - 1];
                 let prevHigh: Cell[] = this.rows[mid - height + 1];
+                let prevLow: Cell[] = this.rows[mid + height - 1];
 
-                let lowCell: Cell = lowRow[i];
                 let highCell: Cell = highRow[i];
+                let lowCell: Cell = lowRow[i];
+
+                //  link top left (i=5)/bottom left (i=3) lines (both are
+                //  defined for all cells)
+                highCell.lines[3] = prevHigh[i].lines[0];
+                highCell.lines[3].cells[1] = highCell;
+
+                lowCell.lines[5] = prevLow[i].lines[2];
+                lowCell.lines[5].cells[0] = lowCell;
+
+                //  link the top right (i=0)/bottom (i=2) lines (both are
+                //  defined for all cells)
+                highCell.lines[2] = prevHigh[i + 1].lines[5];
+                highCell.lines[2].cells[1] = highCell;
+
+                lowCell.lines[0] = prevLow[i + 1].lines[3];
+                lowCell.lines[0].cells[0] = lowCell;
 
                 if(i > 0) {
 
-                    /*  a. check the cell in the same row at the previous
-                     horizontal index (adjacent to the left on a hex board)
-                     */
-                    lowCell.lines[4] = lowRow[i - 1].lines[1];
-                    lowCell.lines[4].cells[0] = lowCell;
-
+                    //  link left lines of cell1 & cell2 (undefined for the first
+                    //  cell in a row)
                     highCell.lines[4] = highRow[i - 1].lines[1];
                     highCell.lines[4].cells[0] = highCell;
 
-                    /*  b. check the above/below cell at the same horizontal
-                     index (to the left on a hex board)
-                     */
-                    lowCell.lines[5] = prevLow[i].lines[2];
-                    lowCell.lines[5].cells[0] = lowCell;
-
-                    highCell.lines[3] = prevHigh[i].lines[0];
-                    highCell.lines[3].cells[1] = highCell;
-                }
-
-                if(i < width - 1) {
-
-                    /*  c. check the above/below cell at the next horizontal
-                     index (to the right on a hex board)
-                     */
-                    lowCell.lines[0] = prevLow[i + 1].lines[3];
-                    lowCell.lines[0].cells[0] = lowCell;
-
-                    highCell.lines[2] = prevHigh[i + 1].lines[5];
-                    highCell.lines[2].cells[1] = highCell;
+                    lowCell.lines[4] = lowRow[i - 1].lines[1];
+                    lowCell.lines[4].cells[0] = lowCell;
                 }
             }
 
-            --width;
             ++height;
+            --width;
         }
 
         /* 3. link lines by their shared nodes */
