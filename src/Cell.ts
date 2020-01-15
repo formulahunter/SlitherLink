@@ -40,7 +40,17 @@ class Cell {
         }
     }
 
-    draw(ctx: CanvasRenderingContext2D): void {
+    getNeighbor(line: number | Line): Cell | null {
+        if(typeof line === 'number') {
+            line = this.lines[line];
+        }
+
+        //  each line is associated with two cells
+        //  return the other one (not the one this method was called on)
+        return line.cells[1 - line.cells.indexOf(this)];
+    }
+
+    draw(ctx: CanvasRenderingContext2D, text?: string): void {
 
         let path: Path2D = this.getPath();
 
