@@ -1,4 +1,4 @@
-import Cell from './Cell';
+import Cell from './Cell.js';
 
 class SlitherLinkGame {
 

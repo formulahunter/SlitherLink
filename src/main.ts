@@ -1,4 +1,4 @@
-import SlitherLinkGame from './SlitherLinkGame';
+import SlitherLinkGame from './SlitherLinkGame.js';
 
 // function main(): void {
     // @ts-ignore

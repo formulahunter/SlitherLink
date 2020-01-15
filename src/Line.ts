@@ -1,5 +1,5 @@
-import Cell from './Cell';
-import SLNode from './SLNode';
+import Cell from './Cell.js';
+import SLNode from './SLNode.js';
 
 
 enum LineState {
