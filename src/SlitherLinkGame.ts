@@ -4,13 +4,26 @@ class SlitherLinkGame {
 
     static readonly cellRadius: number = 10;
 
-    rows: Cell[][];
+    // private canvas: HTMLCanvasElement;
+    private readonly ctx: CanvasRenderingContext2D;
+    private rows: Cell[][];
 
     /** construct SlitherLinkGame with a given board size
      *
      * @param size - number of cells in the middle horizontal
+     * @param canvas - canvas element on which the game will be drawn
      */
-    constructor(size: number) {
+    constructor(size: number, canvas: HTMLCanvasElement) {
+
+        //  define event listeners on canvas element
+        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+
+        // this.canvas = canvas;
+        let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+        if(ctx === null) {
+            throw new Error('unable to get canvas rendering context');
+        }
+        this.ctx = ctx;
 
         //  size must be odd
         //  add 1 if even number given
@@ -238,9 +251,17 @@ class SlitherLinkGame {
             --width;
             ++height;
         }
+
+        //  draw the initial board
+        this.draw(400, 300);
     }
 
-    draw(ctx: CanvasRenderingContext2D, x0: number, y0: number): void {
+    draw(x0: number, y0: number): void {
+
+        //  declare a local variable for the drawing context since its used
+        //  so often
+        let ctx: CanvasRenderingContext2D = this.ctx;
+        ctx.clearRect(0, 0, 800, 600);
 
         //  set the given origin as the center of the board
         ctx.resetTransform();
