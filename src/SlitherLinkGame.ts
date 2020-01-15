@@ -76,7 +76,7 @@ class Cell {
         path.closePath();
 
         this._path = path;
-        
+
         return path;
     }
 }
@@ -257,7 +257,7 @@ class SlitherLinkGame {
                      index (to the right on a hex board)
                      */
                     lowCell.lines[0] = prevLow[i + 1].lines[3];
-                    lowCell.lines[0].cells[1] = lowCell;
+                    lowCell.lines[0].cells[0] = lowCell;
 
                     highCell.lines[2] = prevHigh[i + 1].lines[5];
                     highCell.lines[2].cells[1] = highCell;
