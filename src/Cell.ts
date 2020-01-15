@@ -50,7 +50,7 @@ class Cell {
         return line.cells[1 - line.cells.indexOf(this)];
     }
 
-    draw(ctx: CanvasRenderingContext2D, text?: string): void {
+    draw(ctx: CanvasRenderingContext2D): void {
 
         let path: Path2D = this.getPath();
 
@@ -62,6 +62,9 @@ class Cell {
             ctx.fillStyle = CSSColor.green;
             ctx.fill(path);
             ctx.restore();
+        }
+        else if(ctx.fillStyle === CSSColor.lightgreen) {
+            ctx.fill(path);
         }
 
         //  draw the outline

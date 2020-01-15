@@ -317,11 +317,26 @@ class SlitherLinkGame {
 
         //  pass the drawing context to each cell to draw their outlines and
         //  counts
+        //  identify the cell beneath the mouse
+        let hover: Cell | null = null;
         for(let i = 0; i < size; ++i) {
             for(let j = 0; j < this.rows[i].length; ++j) {
                 this.rows[i][j].draw(ctx);
+                if(this.rows[i][j].mouse) {
+                    hover = this.rows[i][j];
+                }
             }
         }
+
+        //  also highlight the neighbors of the highlighted cell
+        ctx.save();
+        ctx.fillStyle = CSSColor.lightgreen;
+        if(hover !== null) {
+            for(let i = 0; i < 6; ++i) {
+                hover.getNeighbor(hover.lines[i])?.draw(ctx);
+            }
+        }
+        ctx.restore();
 
         //  reset the transform
         ctx.resetTransform();
