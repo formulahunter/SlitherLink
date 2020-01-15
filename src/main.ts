@@ -1,3 +1,5 @@
+import SlitherLinkGame from './SlitherLinkGame';
+
 // function main(): void {
     // @ts-ignore
     let game = new SlitherLinkGame(23);
