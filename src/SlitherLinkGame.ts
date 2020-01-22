@@ -67,8 +67,11 @@ class SlitherLinkGame {
         //  the current row/edge
         while(width > height) {
 
-            this.rows[mid - height] = new Array(width);
-            this.rows[mid + height] = new Array(width);
+            let highInd = mid - height;
+            let lowInd = mid + height;
+
+            this.rows[highInd] = new Array(width);
+            this.rows[lowInd] = new Array(width);
 
             let y1 = -height * Cell.DY;
             let y2 = height * Cell.DY;
@@ -77,8 +80,8 @@ class SlitherLinkGame {
             for(let i = 0; i < width; ++i) {
 
                 let x: number = (i - half + 0.5) * Cell.DX;
-                this.rows[mid - height][i] = new Cell(x, y1);
-                this.rows[mid + height][i] = new Cell(x, y2);
+                this.rows[highInd][i] = new Cell(x, y1);
+                this.rows[lowInd][i] = new Cell(x, y2);
             }
 
             --width;
@@ -90,7 +93,7 @@ class SlitherLinkGame {
         for(let i = 1; i < size; ++i) {
             let cell = this.rows[mid][i];
             cell.lines[4] = this.rows[mid][i - 1].lines[1];
-            cell.lines[4].cells[0] = cell;
+            cell.lines[4].cells[1] = cell;
         }
 
         //  reassign the top-right, top-left, and left lines of each cell
@@ -99,13 +102,16 @@ class SlitherLinkGame {
         height = 1;
         while(width > height) {
 
-            let highRow: Cell[] = this.rows[mid - height];
-            let lowRow: Cell[] = this.rows[mid + height];
+            let highInd = mid - height;
+            let lowInd = mid + height;
+
+            let highRow: Cell[] = this.rows[highInd];
+            let lowRow: Cell[] = this.rows[lowInd];
             for(let i = 0; i < width; ++i) {
 
                 //  check the "previous" (closer to center) rows
-                let prevHigh: Cell[] = this.rows[mid - height + 1];
-                let prevLow: Cell[] = this.rows[mid + height - 1];
+                let prevHigh: Cell[] = this.rows[highInd + 1];
+                let prevLow: Cell[] = this.rows[lowInd - 1];
 
                 let highCell: Cell = highRow[i];
                 let lowCell: Cell = lowRow[i];
@@ -116,7 +122,7 @@ class SlitherLinkGame {
                 highCell.lines[3].cells[1] = highCell;
 
                 lowCell.lines[5] = prevLow[i].lines[2];
-                lowCell.lines[5].cells[0] = lowCell;
+                lowCell.lines[5].cells[1] = lowCell;
 
                 //  link the top right (i=0)/bottom (i=2) lines (both are
                 //  defined for all cells)
@@ -124,17 +130,17 @@ class SlitherLinkGame {
                 highCell.lines[2].cells[1] = highCell;
 
                 lowCell.lines[0] = prevLow[i + 1].lines[3];
-                lowCell.lines[0].cells[0] = lowCell;
+                lowCell.lines[0].cells[1] = lowCell;
 
                 if(i > 0) {
 
                     //  link left lines of cell1 & cell2 (undefined for the first
                     //  cell in a row)
                     highCell.lines[4] = highRow[i - 1].lines[1];
-                    highCell.lines[4].cells[0] = highCell;
+                    highCell.lines[4].cells[1] = highCell;
 
                     lowCell.lines[4] = lowRow[i - 1].lines[1];
-                    lowCell.lines[4].cells[0] = lowCell;
+                    lowCell.lines[4].cells[1] = lowCell;
                 }
             }
 
@@ -154,16 +160,26 @@ class SlitherLinkGame {
              F         /
                \     /
                  \ L
-         */
-        for(let i = 0; i < size; ++i) {
-            let cell = this.rows[mid][i];
-            cell.lines[5].end = cell.lines[4].start;
-            cell.lines[3].end = cell.lines[4].end;
 
-            cell.lines[0].end = cell.lines[5].start;
+            arrows point *away* from line whose node is reassigned/discarded
+         */
+        for(let i = 1; i < size; ++i) {
+            let cell = this.rows[mid][i];
+
+            //  lines[4] is reversed in first cell
+            if(i === 0) {
+                cell.lines[5].start = cell.lines[4].start;
+                cell.lines[3].end = cell.lines[4].end;
+            }
+            else {
+                cell.lines[5].start = cell.lines[4].end;
+                cell.lines[3].end = cell.lines[4].start;
+            }
+
+            cell.lines[0].start = cell.lines[5].end;
             cell.lines[2].end = cell.lines[3].start;
 
-            cell.lines[1].start = cell.lines[0].start;
+            cell.lines[1].start = cell.lines[0].end;
             cell.lines[1].end = cell.lines[2].start;
         }
 
@@ -295,15 +311,17 @@ class SlitherLinkGame {
             }
         }
 
-        //  also highlight the neighbors of the highlighted cell
-        ctx.save();
-        ctx.fillStyle = CSSColor.lightgreen;
+        //  highlight the neighbors of the highlighted cell
         if(hover !== null) {
+            ctx.save();
+
+            //  highlight neighbors
+            ctx.fillStyle = CSSColor.lightgreen;
             for(let i = 0; i < 6; ++i) {
                 hover.getNeighbor(hover.lines[i])?.draw(ctx, i.toString());
             }
+            ctx.restore();
         }
-        ctx.restore();
 
         //  reset the transform
         ctx.resetTransform();
