@@ -1,5 +1,6 @@
 import CSSColor from './CSSColor.js';
 import Line from './Line.js';
+import SLNode from './SLNode.js';
 
 class Cell {
 
@@ -25,14 +26,39 @@ class Cell {
         this.x = x;
         this.y = y;
 
-        this.lines = [
-            new Line(this, null),
-            new Line(null, this),
-            new Line(null, this),
-            new Line(null, this),
-            new Line(this, null),
-            new Line(this, null)
+        const x0 = this.x;
+        const y0 = this.y;
+        const dx = Cell.DX / 2;
+        const dy = Cell.DY / 3;
+
+        // path.arc(x0, y0, 1, 0, 2 * Math.PI);
+
+        let nodes: SLNode[] = [
+            new SLNode(x0, y0 - 2 * dy, this),
+            new SLNode(x0 + dx, y0 - dy, this),
+            new SLNode(x0 + dx, y0 + dy, this),
+            new SLNode(x0, y0 + 2 * dy, this),
+            new SLNode(x0 - dx, y0 + dy, this),
+            new SLNode(x0 - dx, y0 - dy, this)
         ];
+
+        this.lines = [
+            new Line(nodes[0], nodes[1], this),
+            new Line(nodes[1], nodes[2], this),
+            new Line(nodes[2], nodes[3], this),
+            new Line(nodes[3], nodes[4], this),
+            new Line(nodes[4], nodes[5], this),
+            new Line(nodes[5], nodes[0], this)
+        ];
+
+        //  Properly link lines to their respective nodes (replace instance in
+        //  the "dummy" lines[1] and lines[2] slots with the correct instances)
+        nodes[0].lines = [this.lines[0], this.lines[5], null];
+        nodes[1].lines = [this.lines[1], this.lines[0], null];
+        nodes[2].lines = [this.lines[2], this.lines[1], null];
+        nodes[3].lines = [this.lines[3], this.lines[2], null];
+        nodes[4].lines = [this.lines[4], this.lines[3], null];
+        nodes[5].lines = [this.lines[5], this.lines[4], null];
 
         //  assign a count to ~1/3 of all cells
         if(Math.random() > 2 / 3) {
