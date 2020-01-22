@@ -215,27 +215,34 @@ class SlitherLinkGame {
         height = 1;
         while(width > height) {
 
-            let lowRow = this.rows[mid + height];
             let highRow = this.rows[mid - height];
+            let lowRow = this.rows[mid + height];
 
             //  make necessary reassignments on first cell of each row
+            highRow[0].lines[4].end = highRow[0].lines[3].start;
             lowRow[0].lines[4].start = lowRow[0].lines[5].end;
-            highRow[0].lines[4].end = highRow[0].lines[3].end;
 
             for(let i = 0; i < width; ++i) {
 
-                let lowCell = lowRow[i];
                 let highCell = highRow[i];
+                let lowCell = lowRow[i];
 
-                lowCell.lines[3].end = lowCell.lines[4].end;
+                highCell.lines[0].start = highCell.lines[5].end;
+                highCell.lines[1].end = highCell.lines[2].end;
+                highCell.lines[1].start = highCell.lines[0].end;
+
                 lowCell.lines[2].end = lowCell.lines[3].start;
                 lowCell.lines[1].end = lowCell.lines[2].start;
                 lowCell.lines[1].start = lowCell.lines[0].start;
 
-                highCell.lines[5].end = highCell.lines[4].start;
-                highCell.lines[0].end = highCell.lines[5].start;
-                highCell.lines[1].end = highCell.lines[2].start;
-                highCell.lines[1].start = highCell.lines[0].start;
+                if(i === 0) {
+                    highCell.lines[5].start = highCell.lines[4].end;
+                    lowCell.lines[3].end = lowCell.lines[4].start;
+                }
+                else {
+                    highCell.lines[5].start = highCell.lines[4].start;
+                    lowCell.lines[3].end = lowCell.lines[4].end;
+                }
             }
 
             --width;
