@@ -1,5 +1,5 @@
 import CSSColor from './CSSColor.js';
-import Line from './Line.js';
+import Line, {LineState} from './Line.js';
 import SLNode from './SLNode.js';
 
 class Cell {
@@ -93,8 +93,22 @@ class Cell {
             ctx.fill(path);
         }
 
-        //  draw the outline
-        ctx.stroke(path);
+        //  draw each line depending on its state
+        ctx.save();
+        for(let line of this.lines) {
+            if(line.state == LineState.LINE) {
+                ctx.strokeStyle = CSSColor.black;
+            }
+            else {
+                ctx.strokeStyle = CSSColor.lightgray;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(line.start.x, line.start.y);
+            ctx.lineTo(line.end.x, line.end.y);
+            ctx.stroke();
+        }
+        ctx.restore();
 
         //  print text centered in the cell if it has a count constraint
         // if(this.count !== null) {

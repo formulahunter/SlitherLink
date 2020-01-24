@@ -6,6 +6,9 @@ import SlitherLinkGame from './SlitherLinkGame.js';
         throw new Error('missing or invalid canvas element');
     }
 
+    let game: SlitherLinkGame = new SlitherLinkGame(3, canvas);
+    game.combinate();
+
     // @ts-ignore
-    window.game = new SlitherLinkGame(23, canvas);
+    window.game = game;
 // }

@@ -1,5 +1,6 @@
 import Cell from './Cell.js';
 import CSSColor from './CSSColor.js';
+import Line from './Line.js';
 
 class SlitherLinkGame {
 
@@ -39,6 +40,54 @@ class SlitherLinkGame {
 
         //  draw the initial board
         this.draw(400, 300);
+    }
+
+    /** iterate through all possible combinations of line states (on/off) to
+     *  identify valid solutions
+     */
+    combinate(): void {
+
+        //  compile an array of all lines on the board
+        let lines: Line[] = [];
+        for(let row of this.rows) {
+            for(let cell of row) {
+                for(let line of cell.lines) {
+                    if(!lines.includes(line)) {
+                        lines.push(line);
+                    }
+                }
+            }
+        }
+        console.info(lines.length);
+
+        //  define a number whose 32 binary digits will be used to encode the
+        //  state of each line (30 lines total)
+        let currentFrame: number = 0;
+        let timeout: number = 5000;  //  max number of milliseconds
+        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, timeout, currentFrame));
+    }
+    /** animate frames by setting each line state to the corresponding bit in
+     *  'currentFrame'
+     * @param lines
+     * @param timeout
+     * @param currentFrame
+     * @param currentTime
+     */
+    private drawComboFrame(lines: Line[], timeout: number, currentFrame: number, currentTime: DOMHighResTimeStamp) {
+
+        if(currentFrame >= Math.pow(2, 10) || currentTime > timeout) {
+            console.log(`animated ${currentFrame - 1} frames`);
+            return;
+        }
+
+        lines.forEach((line, ind) => {
+            line.state = (currentFrame & Math.pow(2, ind)) ? 2 : 0;
+        });
+        this.draw(400, 300);
+
+        currentFrame++;
+
+        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, timeout, ++currentFrame));
     }
 
     private generateRandom(size: number) {
