@@ -96,7 +96,10 @@ class Cell {
         //  draw the outline
         // ctx.stroke(path);
         for(let line of this.lines) {
-            line.draw(ctx);
+            //  no reason to draw each line twice
+            if(line.inside === this) {
+                line.draw(ctx);
+            }
         }
 
         //  print text centered in the cell if it has a count constraint
