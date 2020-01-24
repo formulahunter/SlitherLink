@@ -1,5 +1,6 @@
 import Cell from './Cell.js';
 import SLNode from './SLNode.js';
+import CSSColor from './CSSColor.js';
 
 
 enum LineState {
@@ -28,9 +29,28 @@ class Line {
         this.cells = [inside, null];
     }
 
-    // isViable(fromLine: Line): boolean {
-    //
-    // }
+    draw(ctx: CanvasRenderingContext2D): void {
+
+        ctx.save();
+        if(this.state == LineState.LINE) {
+            ctx.strokeStyle = CSSColor.black;
+        }
+        else {
+            ctx.strokeStyle = CSSColor.lightgray;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(this.start.x, this.start.y);
+        ctx.lineTo(this.end.x, this.end.y);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    /** Given a refNode, get the opposite node */
+    getOppositeNode(refNode: SLNode) {
+        return this.nodes[1 - this.nodes.indexOf(refNode)];
+    }
 
     get start(): SLNode {
         return this.nodes[0];
@@ -45,6 +65,8 @@ class Line {
     set end(end: SLNode) {
         this.nodes[1] = end;
     }
+
+
 
     /* The 'inside' cell is the cell on the inside of the curve followed when
        tracing the hexagon clockwise; from the start node looking toward the
@@ -67,3 +89,4 @@ class Line {
 
 
 export default Line;
+export {LineState};
