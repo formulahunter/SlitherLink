@@ -212,17 +212,17 @@ class SlitherLinkGame {
 
             arrows point *away* from line whose node is reassigned/discarded
          */
-        for(let i = 1; i < size; ++i) {
+        for(let i = 0; i < size; ++i) {
             let cell = this.rows[mid][i];
 
             //  lines[4] is reversed in first cell
             if(i === 0) {
-                cell.lines[5].start = cell.lines[4].start;
-                cell.lines[3].end = cell.lines[4].end;
-            }
-            else {
                 cell.lines[5].start = cell.lines[4].end;
                 cell.lines[3].end = cell.lines[4].start;
+            }
+            else {
+                cell.lines[5].start = cell.lines[4].start;
+                cell.lines[3].end = cell.lines[4].end;
             }
 
             cell.lines[0].start = cell.lines[5].end;
@@ -264,17 +264,13 @@ class SlitherLinkGame {
         height = 1;
         while(width > height) {
 
-            let highRow = this.rows[mid - height];
-            let lowRow = this.rows[mid + height];
-
-            //  make necessary reassignments on first cell of each row
-            highRow[0].lines[4].end = highRow[0].lines[3].start;
-            lowRow[0].lines[4].start = lowRow[0].lines[5].end;
+            let highRow: Cell[] = this.rows[mid - height];
+            let lowRow: Cell[] = this.rows[mid + height];
 
             for(let i = 0; i < width; ++i) {
 
-                let highCell = highRow[i];
-                let lowCell = lowRow[i];
+                let highCell: Cell = highRow[i];
+                let lowCell: Cell = lowRow[i];
 
                 highCell.lines[0].start = highCell.lines[5].end;
                 highCell.lines[1].end = highCell.lines[2].end;
