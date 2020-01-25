@@ -4,6 +4,23 @@ import Line from './Line.js';
 
 class SlitherLinkGame {
 
+    //  total number of possible states as 2 ^ (# of lines)
+    //  a board 3 cells wide has 30 lines
+    static numStates: number = 0;
+
+    //  compute 256 states per frame b/c the frame rate is fast enough that
+    //  they're barely visible anyway
+    static statesPerFrame: number = Math.pow(2, 8);
+    static initialState: number = 4194304;
+    static stateProgress: number = 0;
+
+    //  300,000 milliseconds, or 5 minutes
+    static simTimeout: number = 300000;
+
+    //  max # states per run equal to 2 full cycles of the first four cells
+    static simStateout: number = Math.pow(2, 20);
+
+    //  1/2 cell width
     static readonly cellRadius: number = 10;
 
     // private canvas: HTMLCanvasElement;
@@ -58,36 +75,44 @@ class SlitherLinkGame {
                 }
             }
         }
-        console.info(lines.length);
+        // console.info(lines.length);
 
         //  define a number whose 32 binary digits will be used to encode the
         //  state of each line (30 lines total)
-        let currentFrame: number = 0;
-        let timeout: number = 5000;  //  max number of milliseconds
-        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, timeout, currentFrame));
+        SlitherLinkGame.numStates = Math.pow(2, lines.length);
+        SlitherLinkGame.stateProgress = 0;
+        let currentState: number = SlitherLinkGame.initialState;
+        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
     }
     /** animate frames by setting each line state to the corresponding bit in
-     *  'currentFrame'
+     *  'currentState'
      * @param lines
-     * @param timeout
-     * @param currentFrame
+     * @param currentState
      * @param currentTime
      */
-    private drawComboFrame(lines: Line[], timeout: number, currentFrame: number, currentTime: DOMHighResTimeStamp) {
+    private drawComboFrame(lines: Line[], currentState: number, currentTime: DOMHighResTimeStamp) {
 
-        if(currentFrame >= Math.pow(2, 10) || currentTime > timeout) {
-            console.log(`animated ${currentFrame - 1} frames`);
+        if(currentState - SlitherLinkGame.initialState >= SlitherLinkGame.simStateout || currentTime > SlitherLinkGame.simTimeout) {
+            console.log(`animated ${currentState - SlitherLinkGame.initialState - 1} states in ${(currentTime / 1000).toFixed(3)}` +
+                ` seconds\n next state to compute is ${currentState}`);
             return;
         }
 
-        lines.forEach((line, ind) => {
-            line.state = (currentFrame & Math.pow(2, ind)) ? 2 : 0;
-        });
+        let progress: number = Math.trunc(10000 * currentState / SlitherLinkGame.numStates);
+        if(progress > SlitherLinkGame.stateProgress) {
+            SlitherLinkGame.stateProgress = progress;
+            console.log(`${(progress / 100).toFixed(2)}%`);
+        }
+
+        for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
+            lines.forEach((line, ind) => {
+                line.state = (currentState & Math.pow(2, ind)) ? 2 : 0;
+            });
+            currentState++;
+        }
         this.draw(400, 300);
 
-        currentFrame++;
-
-        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, timeout, ++currentFrame));
+        window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
     }
 
     private generateRandom(size: number) {
