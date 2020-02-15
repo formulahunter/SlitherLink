@@ -13,7 +13,7 @@
     "typescript": "^3.7.4"
   },
   "scripts": {
-    "devstart": "nodemon ",
+    "devstart": "nodemon -V lib/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "lint": "tslint -c tslint.json src/**/*.ts",
