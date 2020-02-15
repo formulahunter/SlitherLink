@@ -1,5 +1,5 @@
 import Cell from './Cell.js';
-import Line from './Line.js';
+import Line, {LineState} from './Line.js';
 
 
 class SLNode {
@@ -19,6 +19,29 @@ class SLNode {
             new Line(this, this, cell),
             new Line(this, this, cell)
         ]
+    }
+
+    countFilled(): number {
+        return this.lines.filter(line =>
+            line !== null && line.state === LineState.LINE
+        ).length;
+    }
+
+    /** get lines opposing the given 'refLine', regardless of state */
+    getOpposingLines(refLine: Line, state?: LineState): Line[] {
+        let opposing: Line[] = this.lines.filter(line => line !== refLine);
+        if(state !== undefined) {
+            opposing = opposing.filter(line => line.state === state);
+        }
+
+        return opposing;
+    }
+    getNextLineInPath(refLine: Line): Line | null {
+        let filled: Line[] = this.getOpposingLines(refLine, LineState.LINE);
+        if(filled.length !== 1) {
+            return null;
+        }
+        return filled[0];
     }
 
     get x(): number {

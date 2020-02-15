@@ -1,24 +1,28 @@
 import Cell from './Cell.js';
 import CSSColor from './CSSColor.js';
-import Line from './Line.js';
+import Line, {LineState} from './Line.js';
+import SLNode from './SLNode.js';
 
 class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
     //  a board 3 cells wide has 30 lines
-    static numStates: number = 0;
+    static numStates: bigint = BigInt(0);
 
     //  compute 256 states per frame b/c the frame rate is fast enough that
     //  they're barely visible anyway
     static statesPerFrame: number = Math.pow(2, 8);
-    static initialState: number = 4194304;
+    static initialState: bigint = BigInt(0);
     static stateProgress: number = 0;
 
-    //  300,000 milliseconds, or 5 minutes
-    static simTimeout: number = 300000;
+    //  30,000 milliseconds, or 30 seconds
+    static simTimeout: number = 30000;
 
     //  max # states per run equal to 2 full cycles of the first four cells
-    static simStateout: number = Math.pow(2, 20);
+    static simStateout: bigint = BigInt(Math.pow(2, 18));
+
+    //  states with at least 1 valid loop
+    static validLoopStates: bigint[] = [];
 
     //  1/2 cell width
     static readonly cellRadius: number = 10;
@@ -79,9 +83,9 @@ class SlitherLinkGame {
 
         //  define a number whose 32 binary digits will be used to encode the
         //  state of each line (30 lines total)
-        SlitherLinkGame.numStates = Math.pow(2, lines.length);
+        SlitherLinkGame.numStates = BigInt(Math.pow(2, lines.length));
         SlitherLinkGame.stateProgress = 0;
-        let currentState: number = SlitherLinkGame.initialState;
+        let currentState: bigint = SlitherLinkGame.initialState;
         window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
     }
     /** animate frames by setting each line state to the corresponding bit in
@@ -90,29 +94,71 @@ class SlitherLinkGame {
      * @param currentState
      * @param currentTime
      */
-    private drawComboFrame(lines: Line[], currentState: number, currentTime: DOMHighResTimeStamp) {
+    private drawComboFrame(lines: Line[], currentState: bigint, currentTime: DOMHighResTimeStamp) {
 
         if(currentState - SlitherLinkGame.initialState >= SlitherLinkGame.simStateout || currentTime > SlitherLinkGame.simTimeout) {
-            console.log(`animated ${currentState - SlitherLinkGame.initialState - 1} states in ${(currentTime / 1000).toFixed(3)}` +
+            console.log(`animated ${currentState - SlitherLinkGame.initialState - BigInt(1)} states in ${(currentTime / 1000).toFixed(3)}` +
                 ` seconds\n next state to compute is ${currentState}`);
             return;
         }
 
-        let progress: number = Math.trunc(10000 * currentState / SlitherLinkGame.numStates);
+        let progress: number = Number(BigInt(10000) * currentState / SlitherLinkGame.numStates);
         if(progress > SlitherLinkGame.stateProgress) {
             SlitherLinkGame.stateProgress = progress;
-            console.log(`${(progress / 100).toFixed(2)}%`);
+            console.log(`${(Number(progress) / 100).toFixed(2)}%`);
         }
 
         for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
-            lines.forEach((line, ind) => {
-                line.state = (currentState & Math.pow(2, ind)) ? 2 : 0;
-            });
+
+            this.setState(currentState, lines);
+            if(this.checkWin()) {
+                SlitherLinkGame.validLoopStates.push(currentState);
+            }
+
             currentState++;
         }
         this.draw(400, 300);
 
         window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
+    }
+
+    /** check if the current game state is a valid solution
+     *  this is determined by three criteria:
+     *  1. every filled line on the board is part of a single, continuous loop
+     *      a.
+     *  2. every cell's count requirement is satisfied
+     */
+    checkWin(): boolean {
+
+        //  find the first line that is "on"
+        let filledLines: Line[] = this.rows.flatMap(row =>
+            row.flatMap(cell =>
+                cell.lines.filter(line => line !== null && line.state === LineState.LINE)
+            )
+        );
+
+        //  if no lines are filled in yet, the game has not been solved
+        if(filledLines.length === 0) {
+            return false;
+        }
+
+        //  THIS LOOP ONLY CHECKS FOR A CONTINUOUS LOOP
+        //  EVEN IF TRUE, IT MAY NOT BE THE ONLY ONE
+        let currentLine: Line = filledLines[0];
+        let currentNode: SLNode = currentLine.start;
+        do {
+            currentNode = currentLine.getOppositeNode(currentNode);
+
+            //  verify that exactly two filled lines meet at the current node
+            let next: Line | null = currentNode.getNextLineInPath(currentLine);
+            if(next === null) {
+                return false;
+            }
+            currentLine = next;
+
+        } while(currentLine !== filledLines[0]);
+
+        return true;
     }
 
     private generateRandom(size: number) {
@@ -402,6 +448,38 @@ class SlitherLinkGame {
 
         //  reset the transform
         ctx.resetTransform();
+    }
+
+    /** Accepts an optional lines argument to expedite in the case where lines
+     *  are accessible in the calling context
+     */
+    setState(state: bigint, lines?: Line[]): void {
+        if(lines === undefined) {
+            lines = this.getAllLines();
+        }
+
+        //  set each line's state based on
+        lines.forEach((line, ind) => {
+            line.state = (state & BigInt(Math.pow(2, ind))) ? 2 : 0;
+        });
+    }
+
+    getAllLines(): Line[] {
+        let lines: Line[] = [];
+
+        //  may need to adjust the order in which lines are added to the array
+        //  positions must align with respective bits in a 'state' BigInt
+        for(let row of this.rows) {
+            for(let cell of row) {
+                for(let line of cell.lines) {
+                    if(lines.indexOf(line) < 0) {
+                        lines.push(line);
+                    }
+                }
+            }
+        }
+
+        return lines;
     }
 }
 
