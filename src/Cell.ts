@@ -53,12 +53,12 @@ class Cell {
 
         //  Properly link lines to their respective nodes (replace instance in
         //  the "dummy" lines[1] and lines[2] slots with the correct instances)
-        nodes[0].lines = [this.lines[0], this.lines[5], null];
-        nodes[1].lines = [this.lines[1], this.lines[0], null];
-        nodes[2].lines = [this.lines[2], this.lines[1], null];
-        nodes[3].lines = [this.lines[3], this.lines[2], null];
-        nodes[4].lines = [this.lines[4], this.lines[3], null];
-        nodes[5].lines = [this.lines[5], this.lines[4], null];
+        nodes[0].lines = [this.lines[0], this.lines[5]];
+        nodes[1].lines = [this.lines[1], this.lines[0]];
+        nodes[2].lines = [this.lines[2], this.lines[1]];
+        nodes[3].lines = [this.lines[3], this.lines[2]];
+        nodes[4].lines = [this.lines[4], this.lines[3]];
+        nodes[5].lines = [this.lines[5], this.lines[4]];
 
         //  assign a count to ~1/3 of all cells
         if(Math.random() > 2 / 3) {

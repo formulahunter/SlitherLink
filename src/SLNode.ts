@@ -7,8 +7,8 @@ class SLNode {
     coords: [number, number];
 
     dir?: 0 | 1;     //  0 if vertical line points up, 1 if down
-    lines: [Line, Line, Line | null];  //  a node is the intersection
-                                       // of 2 (or 3) lines
+    lines: [Line, Line] | [Line, Line, Line];  //  a node is the intersection
+                                               //  of 2 (or 3) lines
 
     constructor(x: number, y: number, cell: Cell) {
         this.coords = [x, y];
@@ -17,8 +17,7 @@ class SLNode {
         //  immediately after Lines are instantiated in the Cell constructor
         this.lines = [
             new Line(this, this, cell),
-            new Line(this, this, cell),
-            null
+            new Line(this, this, cell)
         ]
     }
 
