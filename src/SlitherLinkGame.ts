@@ -21,7 +21,7 @@ class SlitherLinkGame {
     //  30,000 milliseconds, or 30 seconds
     static simTimeout: number = 30000;
 
-    //  max # states per run equal to 2 full cycles of the first four cells
+    //  max # states per run
     static simStateout: bigint = BigInt(Math.pow(2, 18));
 
     //  states with at least 1 valid loop
@@ -132,8 +132,12 @@ class SlitherLinkGame {
     /** check if the current game state is a valid solution
      *  this is determined by three criteria:
      *  1. every filled line on the board is part of a single, continuous loop
-     *      a.
+     *      a. (...what was this for...?)
      *  2. every cell's count requirement is satisfied
+     *  3. every cell must contribute at least 1 edge to the solution
+     *      a. consider including rejected as "contributing" edges, i.e.
+     *      every cell must have at least one edge that is either a
+     *      confirmed line or proven blank
      */
     checkWin(): boolean {
 
@@ -164,6 +168,13 @@ class SlitherLinkGame {
             currentLine = next;
 
         } while(currentLine !== filledLines[0]);
+
+        //  confirm that every cell on the board "contributes" to the solution
+        for(let row of this.rows) {
+            if(row.some(cell => !cell.contributes)) {
+                return false;
+            }
+        }
 
         return true;
     }

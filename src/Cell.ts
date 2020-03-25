@@ -66,6 +66,12 @@ class Cell {
         }
     }
 
+    /** check that this cell has at least 1 edge contributing to the solution
+     *  (i.e. either proven or disproven to be a line, but not indeterminate) */
+    get contributes(): boolean {
+        return this.lines.some(ln => !ln.indet);
+    }
+
     getNeighbor(line: number | Line): Cell | null {
         if(typeof line === 'number') {
             line = this.lines[line];
