@@ -18,14 +18,17 @@ class SlitherLinkGame {
     static startTime: DOMHighResTimeStamp;
     static stateProgress: number = 0;
 
-    //  30,000 milliseconds, or 30 seconds
-    static simTimeout: number = 30000;
+    //  15m x 60s x 1000ms;
+    //  start with a moderate duration "test run"
+    static simTimeout: number = 10 * 60 * 1000;
 
     //  number of states represented by 2 full cycles of the first four cells
     static readonly unitCycle: bigint = BigInt(Math.pow(2, 20));
 
     //  max # states per run as a multiple of "unit cycles"
-    static simStateout: bigint = SlitherLinkGame.unitCycle;
+    //  set a really huge number (total possible states) to guarantee
+    //  timeout is reached first
+    static simStateout: bigint = BigInt(Math.pow(2, 10)) * SlitherLinkGame.unitCycle;
 
     //  states with at least 1 valid loop
     static validLoopStates: bigint[] = [];
@@ -112,10 +115,14 @@ class SlitherLinkGame {
             return;
         }
 
-        let progress: number = Number(BigInt(10000) * currentState / SlitherLinkGame.numStates);
+        let progress: number = Number(BigInt(1000) * currentState / SlitherLinkGame.numStates);
         if(progress > SlitherLinkGame.stateProgress) {
             SlitherLinkGame.stateProgress = progress;
-            console.log(`${(Number(progress) / 100).toFixed(2)}%`);
+            let percent = `${(Number(progress) / 100).toFixed(2)}%`;
+            let et = `${(elapsedTime / 1000).toFixed(3)}s`;
+            let es = `${elapsedStates} states`;
+            let avg = `(${elapsedStates / BigInt(elapsedTime)} states/s)`;
+            console.log(`${percent} -- ${es} in ${et} (${avg})`);
         }
 
         for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
@@ -123,6 +130,8 @@ class SlitherLinkGame {
             this.setState(currentState, lines);
             if(this.checkWin()) {
                 SlitherLinkGame.validLoopStates.push(currentState);
+                console.log(`new win state: ${currentState}\n`
+                    + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
             }
 
             currentState++;
