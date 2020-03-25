@@ -21,8 +21,11 @@ class SlitherLinkGame {
     //  30,000 milliseconds, or 30 seconds
     static simTimeout: number = 30000;
 
-    //  max # states per run
-    static simStateout: bigint = BigInt(Math.pow(2, 18));
+    //  number of states represented by 2 full cycles of the first four cells
+    static readonly unitCycle: bigint = BigInt(Math.pow(2, 20));
+
+    //  max # states per run as a multiple of "unit cycles"
+    static simStateout: bigint = SlitherLinkGame.unitCycle;
 
     //  states with at least 1 valid loop
     static validLoopStates: bigint[] = [];
