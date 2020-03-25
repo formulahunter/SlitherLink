@@ -3,6 +3,8 @@ import CSSColor from './CSSColor.js';
 import Line, {LineState} from './Line.js';
 import SLNode from './SLNode.js';
 
+//  ⋰⋱⋮⋯│─┄┆╱╲
+
 class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
@@ -13,6 +15,7 @@ class SlitherLinkGame {
     //  they're barely visible anyway
     static statesPerFrame: number = Math.pow(2, 8);
     static initialState: bigint = BigInt(0);
+    static startTime: DOMHighResTimeStamp;
     static stateProgress: number = 0;
 
     //  30,000 milliseconds, or 30 seconds
@@ -66,7 +69,7 @@ class SlitherLinkGame {
     /** iterate through all possible combinations of line states (on/off) to
      *  identify valid solutions
      */
-    combinate(): void {
+    combinate(initialState?: bigint): void {
 
         //  compile an array of all lines on the board
         let lines: Line[] = [];
@@ -85,7 +88,8 @@ class SlitherLinkGame {
         //  state of each line (30 lines total)
         SlitherLinkGame.numStates = BigInt(Math.pow(2, lines.length));
         SlitherLinkGame.stateProgress = 0;
-        let currentState: bigint = SlitherLinkGame.initialState;
+        SlitherLinkGame.startTime = performance.now();
+        let currentState: bigint = initialState || SlitherLinkGame.initialState;
         window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
     }
     /** animate frames by setting each line state to the corresponding bit in
@@ -96,9 +100,12 @@ class SlitherLinkGame {
      */
     private drawComboFrame(lines: Line[], currentState: bigint, currentTime: DOMHighResTimeStamp) {
 
-        if(currentState - SlitherLinkGame.initialState >= SlitherLinkGame.simStateout || currentTime > SlitherLinkGame.simTimeout) {
-            console.log(`animated ${currentState - SlitherLinkGame.initialState - BigInt(1)} states in ${(currentTime / 1000).toFixed(3)}` +
-                ` seconds\n next state to compute is ${currentState}`);
+        let elapsedTime: DOMHighResTimeStamp = currentTime - SlitherLinkGame.startTime;
+        let elapsedStates: bigint = currentState - SlitherLinkGame.initialState;
+        if(elapsedStates >= SlitherLinkGame.simStateout || elapsedTime > SlitherLinkGame.simTimeout) {
+            console.log(`animated ${elapsedStates - BigInt(1)} states in ${(elapsedTime / 1000).toFixed(3)} seconds\n`
+                + `next state to compute is ${currentState}`);
+            SlitherLinkGame.initialState = currentState;
             return;
         }
 
