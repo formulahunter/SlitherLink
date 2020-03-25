@@ -23,7 +23,7 @@ class SLNode {
 
     countFilled(): number {
         return this.lines.filter(line =>
-            line !== null && line.state === LineState.LINE
+            line !== null && line.proven
         ).length;
     }
 
@@ -31,7 +31,7 @@ class SLNode {
     getOpposingLines(refLine: Line, state?: LineState): Line[] {
         let opposing: Line[] = this.lines.filter(line => line !== refLine);
         if(state !== undefined) {
-            opposing = opposing.filter(line => line.state === state);
+            opposing = opposing.filter(line => line.state & state);
         }
 
         return opposing;

@@ -140,7 +140,7 @@ class SlitherLinkGame {
         //  find the first line that is "on"
         let filledLines: Line[] = this.rows.flatMap(row =>
             row.flatMap(cell =>
-                cell.lines.filter(line => line !== null && line.state === LineState.LINE)
+                cell.lines.filter(line => line !== null && line.proven)
             )
         );
 
@@ -467,7 +467,7 @@ class SlitherLinkGame {
 
         //  set each line's state based on
         lines.forEach((line, ind) => {
-            line.state = (state & BigInt(Math.pow(2, ind))) ? 2 : 0;
+            line.state = (state & BigInt(Math.pow(2, ind))) ? LineState.LINE : LineState.INDET;
         });
     }
 

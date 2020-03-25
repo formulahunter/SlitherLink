@@ -1,5 +1,5 @@
 import CSSColor from './CSSColor.js';
-import Line, {LineState} from './Line.js';
+import Line from './Line.js';
 import SLNode from './SLNode.js';
 
 class Cell {
@@ -96,7 +96,7 @@ class Cell {
         //  draw each line depending on its state
         ctx.save();
         for(let line of this.lines) {
-            if(line.state == LineState.LINE) {
+            if(line.proven) {
                 ctx.strokeStyle = CSSColor.black;
             }
             else {
