@@ -20,7 +20,7 @@ class SlitherLinkGame {
 
     //  15m x 60s x 1000ms;
     //  start with a moderate duration "test run"
-    static simTimeout: number = 10 * 60 * 1000;
+    static simTimeout: number = 12 * 60 * 1000;
 
     //  number of states represented by 2 full cycles of the first four cells
     static readonly unitCycle: bigint = BigInt(Math.pow(2, 20));
@@ -118,10 +118,10 @@ class SlitherLinkGame {
         let progress: number = Number(BigInt(1000) * currentState / SlitherLinkGame.numStates);
         if(progress > SlitherLinkGame.stateProgress) {
             SlitherLinkGame.stateProgress = progress;
-            let percent = `${(Number(progress) / 100).toFixed(2)}%`;
+            let percent = `${(Number(progress) / 10).toFixed(2)}%`;
             let et = `${(elapsedTime / 1000).toFixed(3)}s`;
             let es = `${elapsedStates} states`;
-            let avg = `(${elapsedStates / BigInt(elapsedTime)} states/s)`;
+            let avg = `(${(1000 * Number(elapsedStates) / Number(elapsedTime)).toFixed(3)} states/s)`;   //  convert ms to seconds (cast BigInts back to Numbers to preserve that would otherwise be lost to rounding)
             console.log(`${percent} -- ${es} in ${et} (${avg})`);
         }
 
@@ -130,7 +130,7 @@ class SlitherLinkGame {
             this.setState(currentState, lines);
             if(this.checkWin()) {
                 SlitherLinkGame.validLoopStates.push(currentState);
-                console.log(`new win state: ${currentState}\n`
+                console.info(`new win state: ${currentState}\n`
                     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
             }
 
