@@ -26,5 +26,7 @@
     "./lib/*"
   ],
   "typings": "./lib/index.d.ts",
-  "devDependencies": {}
+  "devDependencies": {
+    "nodemon": "^2.0.6"
+  }
 }
