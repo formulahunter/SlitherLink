@@ -1,13 +1,46 @@
 import Cell from './Cell.js';
 import CSSColor from './CSSColor.js';
+import Line, { LineState } from './Line.js';
+import SLNode from './SLNode.js';
+
+//  ⋰⋱⋮⋯│─┄┆╱╲
 
 class SlitherLinkGame {
 
+    //  total number of possible states as 2 ^ (# of lines)
+    //  a board 3 cells wide has 30 lines
+    static numStates: bigint = BigInt(0);
+
+    //  compute 256 states per frame b/c the frame rate is fast enough that
+    //  they're barely visible anyway
+    static statesPerFrame: number = Math.pow(2, 8);
+    static initialState: bigint = BigInt(106581248);
+    static startTime: DOMHighResTimeStamp;
+    static stateProgress: number = 0;
+
+    //  frame request id returned by requestAnimationFrame()
+    //  used to pause/resume simulation
+    static frameRequest: number = 0;
+
+    //  next state to calculate on resuming simulation
+    static resumeState: bigint = SlitherLinkGame.initialState;
+
+    //  periodic logging parameters
+    static logPeriod: number = 60 * 1000;   //  milliseconds between log messages
+    static lastLog: DOMHighResTimeStamp = 0;
+
+    //  states with at least 1 valid loop
+    static validLoopStates: bigint[] = [];
+
+    //  1/2 cell width
     static readonly cellRadius: number = 10;
 
     // private canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
+
+    //  container arrays
     private rows: Cell[][];
+    private readonly lines: Line[];
 
     /** construct SlitherLinkGame with a given board size
      *
@@ -17,7 +50,8 @@ class SlitherLinkGame {
     constructor(size: number, canvas: HTMLCanvasElement) {
 
         //  define event listeners on canvas element
-        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        canvas.addEventListener('click', this.handleClick.bind(this));
 
         // this.canvas = canvas;
         let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
@@ -36,9 +70,112 @@ class SlitherLinkGame {
         //  middle row
         this.rows = new Array(Math.ceil(size));
         this.generateRandom(size);
+        this.lines = this.getAllLines();
+
+        //  define a number whose 32 binary digits will be used to encode the
+        //  state of each line (30 lines total for size = 3)
+        SlitherLinkGame.numStates = BigInt(Math.pow(2, this.lines.length));
 
         //  draw the initial board
         this.draw(400, 300);
+    }
+
+    /** iterate through all possible combinations of line states (on/off) to
+     *  identify valid solutions
+     */
+    combinate(initialState?: bigint): void {
+
+        //  record/log starting time & initial state for this run
+        SlitherLinkGame.startTime = performance.now();
+        SlitherLinkGame.initialState = initialState || SlitherLinkGame.resumeState;
+        console.log(`starting simulation at ${SlitherLinkGame.startTime} with state ${(SlitherLinkGame.initialState)}`);
+        console.warn('simulation will not stop itself -- click on the canvas to pause/resume');
+
+        SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState));
+    }
+    /** animate frames by setting each line state to the corresponding bit in
+     *  'currentState'
+     * @param lines
+     * @param currentState
+     * @param currentTime
+     */
+    private drawComboFrame(lines: Line[], currentState: bigint, currentTime: DOMHighResTimeStamp) {
+
+        //  un-set the frame request in case this method does not run to completion (where a new request ID will be assigned)
+        SlitherLinkGame.frameRequest = 0;
+
+        if(currentTime > SlitherLinkGame.lastLog + SlitherLinkGame.logPeriod) {
+            this.logProgress(currentState);
+            this.logCurrentRun(currentState, currentTime);
+            SlitherLinkGame.lastLog = currentTime;
+        }
+
+        for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
+
+            this.setState(currentState, lines);
+            if(this.checkWin()) {
+                SlitherLinkGame.validLoopStates.push(currentState);
+                console.info(`new win state: ${currentState}\n`
+                    + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
+            }
+
+            currentState++;
+        }
+        SlitherLinkGame.resumeState = currentState;
+        this.draw(400, 300);
+
+        //  assign the new request id to be used to pause simulation in a canvas 'click' event
+        SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
+    }
+
+    /** check if the current game state is a valid solution
+     *  this is determined by three criteria:
+     *  1. every filled line on the board is part of a single, continuous loop
+     *      a. (...what was this for...?)
+     *  2. every cell's count requirement is satisfied
+     *  3. every cell must contribute at least 1 edge to the solution
+     *      a. consider including rejected as "contributing" edges, i.e.
+     *      every cell must have at least one edge that is either a
+     *      confirmed line or proven blank
+     */
+    checkWin(): boolean {
+
+        //  find the first line that is "on"
+        let filledLines: Line[] = this.rows.flatMap(row =>
+            row.flatMap(cell =>
+                cell.lines.filter(line => line !== null && line.proven)
+            )
+        );
+
+        //  if no lines are filled in yet, the game has not been solved
+        if(filledLines.length === 0) {
+            return false;
+        }
+
+        //  THIS LOOP ONLY CHECKS FOR A CONTINUOUS LOOP
+        //  EVEN IF TRUE, IT MAY NOT BE THE ONLY ONE
+        let currentLine: Line = filledLines[0];
+        let currentNode: SLNode = currentLine.start;
+        do {
+            currentNode = currentLine.getOppositeNode(currentNode);
+
+            //  verify that exactly two filled lines meet at the current node
+            let next: Line | null = currentNode.getNextLineInPath(currentLine);
+            if(next === null) {
+                return false;
+            }
+            currentLine = next;
+
+        } while(currentLine !== filledLines[0]);
+
+        //  confirm that every cell on the board "contributes" to the solution
+        for(let row of this.rows) {
+            if(row.some(cell => !cell.contributes)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private generateRandom(size: number) {
@@ -277,6 +414,21 @@ class SlitherLinkGame {
         //  entire canvas)
         this.draw(400, 300);
     }
+    handleClick(_ev: MouseEvent): void {
+        //  pause the simulation if it is currently running, otherwise resume it
+        if(SlitherLinkGame.frameRequest) {
+            window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
+            SlitherLinkGame.frameRequest = 0;
+
+            let progress: number = Number(BigInt(1000) * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
+            let percent = `${(Number(progress) / 10).toFixed(2)}%`;
+            this.logCurrentRun(SlitherLinkGame.resumeState - BigInt(1));
+            console.log(`paused: next state to compute is ${SlitherLinkGame.resumeState} (${percent})`);
+        }
+        else {
+            this.combinate();
+        }
+    }
 
     draw(x0: number, y0: number): void {
 
@@ -328,6 +480,52 @@ class SlitherLinkGame {
 
         //  reset the transform
         ctx.resetTransform();
+    }
+
+    /** log big-picture progress */
+    logProgress(currentState: bigint): void {
+        SlitherLinkGame.stateProgress = Number(BigInt(1000) * currentState / SlitherLinkGame.numStates);
+        const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
+        console.log(`${currentState} of ${SlitherLinkGame.numStates} states checked (${percent}%)`);
+    }
+    /** log stats of current simulation run (since started/resumed) */
+    logCurrentRun(currentState: bigint, currentTime: DOMHighResTimeStamp = performance.now()): void {
+        const elapsedTime: number = (currentTime - SlitherLinkGame.startTime) / 1000;
+        const elapsedStates: bigint = currentState - SlitherLinkGame.initialState;
+        const avg = Number(elapsedStates) / elapsedTime;   //  convert ms to seconds (cast BigInts back to Numbers to preserve sigfigs that would otherwise be lost to rounding)
+        console.log(`current run: ${elapsedStates} states in ${elapsedTime.toFixed(3)}s (${avg.toFixed(3)} states/s)`);
+    }
+
+    /** Accepts an optional lines argument to expedite in the case where lines
+     *  are accessible in the calling context
+     */
+    setState(state: bigint, lines?: Line[]): void {
+        if(lines === undefined) {
+            lines = this.getAllLines();
+        }
+
+        //  set each line's state based on
+        lines.forEach((line, ind) => {
+            line.state = (state & BigInt(Math.pow(2, ind))) ? LineState.LINE : LineState.INDET;
+        });
+    }
+
+    getAllLines(): Line[] {
+        let lines: Line[] = [];
+
+        //  may need to adjust the order in which lines are added to the array
+        //  positions must align with respective bits in a 'state' BigInt
+        for(let row of this.rows) {
+            for(let cell of row) {
+                for(let line of cell.lines) {
+                    if(lines.indexOf(line) < 0) {
+                        lines.push(line);
+                    }
+                }
+            }
+        }
+
+        return lines;
     }
 }
 

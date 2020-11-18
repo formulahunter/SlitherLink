@@ -53,17 +53,23 @@ class Cell {
 
         //  Properly link lines to their respective nodes (replace instance in
         //  the "dummy" lines[1] and lines[2] slots with the correct instances)
-        nodes[0].lines = [this.lines[0], this.lines[5], null];
-        nodes[1].lines = [this.lines[1], this.lines[0], null];
-        nodes[2].lines = [this.lines[2], this.lines[1], null];
-        nodes[3].lines = [this.lines[3], this.lines[2], null];
-        nodes[4].lines = [this.lines[4], this.lines[3], null];
-        nodes[5].lines = [this.lines[5], this.lines[4], null];
+        nodes[0].lines = [this.lines[0], this.lines[5]];
+        nodes[1].lines = [this.lines[1], this.lines[0]];
+        nodes[2].lines = [this.lines[2], this.lines[1]];
+        nodes[3].lines = [this.lines[3], this.lines[2]];
+        nodes[4].lines = [this.lines[4], this.lines[3]];
+        nodes[5].lines = [this.lines[5], this.lines[4]];
 
         //  assign a count to ~1/3 of all cells
         if(Math.random() > 2 / 3) {
             this.count = Math.floor(6 * Math.random());
         }
+    }
+
+    /** check that this cell has at least 1 edge contributing to the solution
+     *  (i.e. either proven or disproven to be a line, but not indeterminate) */
+    get contributes(): boolean {
+        return this.lines.some(ln => !ln.indet);
     }
 
     getNeighbor(line: number | Line): Cell | null {
@@ -93,14 +99,22 @@ class Cell {
             ctx.fill(path);
         }
 
-        //  draw the outline
-        // ctx.stroke(path);
+        //  draw each line depending on its state
+        ctx.save();
         for(let line of this.lines) {
-            //  no reason to draw each line twice
-            if(line.inside === this) {
-                line.draw(ctx);
+            if(line.proven) {
+                ctx.strokeStyle = CSSColor.black;
             }
+            else {
+                ctx.strokeStyle = CSSColor.lightgray;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(line.start.x, line.start.y);
+            ctx.lineTo(line.end.x, line.end.y);
+            ctx.stroke();
         }
+        ctx.restore();
 
         //  print text centered in the cell if it has a count constraint
         // if(this.count !== null) {

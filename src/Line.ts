@@ -4,9 +4,9 @@ import CSSColor from './CSSColor.js';
 
 
 enum LineState {
-    INDET,
-    BLANK,
-    LINE
+    INDET = 0b001,
+    BLANK = 0b010,
+    LINE  = 0b100
 }
 class Line {
     nodes: [SLNode, SLNode];
@@ -32,7 +32,7 @@ class Line {
     draw(ctx: CanvasRenderingContext2D): void {
 
         ctx.save();
-        if(this.state == LineState.LINE) {
+        if(this.proven) {
             ctx.strokeStyle = CSSColor.black;
         }
         else {
@@ -45,6 +45,16 @@ class Line {
         ctx.stroke();
 
         ctx.restore();
+    }
+
+    get proven(): number {
+        return this.state & LineState.LINE;
+    }
+    get disproven(): number {
+        return this.state & LineState.BLANK;
+    }
+    get indet(): number {
+        return this.state & LineState.INDET;
     }
 
     /** Given a refNode, get the opposite node */
