@@ -2,8 +2,10 @@ import Cell from './Cell.js';
 import CSSColor from './CSSColor.js';
 import Line, { LineState } from './Line.js';
 import SLNode from './SLNode.js';
+import { cell_json, hex_dirs, make_stem_cell } from './types.js';
 
-//  ⋰⋱⋮⋯│─┄┆╱╲
+//  local constants for convenience
+const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
 class SlitherLinkGame {
 
@@ -14,7 +16,7 @@ class SlitherLinkGame {
     //  compute 256 states per frame b/c the frame rate is fast enough that
     //  they're barely visible anyway
     static statesPerFrame: number = Math.pow(2, 8);
-    static initialState: bigint = BigInt(106581248);
+    static initialState: bigint = BigInt(302492928);
     static startTime: DOMHighResTimeStamp;
     static stateProgress: number = 0;
 
@@ -43,7 +45,8 @@ class SlitherLinkGame {
 
     //  container arrays
     private rows: Cell[][];
-    private readonly lines: Line[];
+    private readonly lines: Line[] = [];
+    tree: {stem: Cell, branches: Cell[][]}[] = [];
 
     /** construct SlitherLinkGame with a given board size
      *
@@ -73,14 +76,14 @@ class SlitherLinkGame {
         //  middle row
         this.rows = new Array(Math.ceil(size));
         this.generateRandom(size);
-        this.lines = this.getAllLines();
+        // this.lines = this.getAllLines();
 
         //  define a number whose 32 binary digits will be used to encode the
         //  state of each line (30 lines total for size = 3)
         SlitherLinkGame.numStates = BigInt(Math.pow(2, this.lines.length));
 
         //  draw the initial board
-        this.draw(400, 300);
+        // this.draw(400, 300);
     }
 
     /** iterate through all possible combinations of line states (on/off) to
@@ -158,11 +161,7 @@ class SlitherLinkGame {
     checkWin(): boolean {
 
         //  find the first line that is "on"
-        let filledLines: Line[] = this.rows.flatMap(row =>
-            row.flatMap(cell =>
-                cell.lines.filter(line => line !== null && line.proven)
-            )
-        );
+        let filledLines: Line[] = this.lines.filter(line => line.proven);
 
         //  if no lines are filled in yet, the game has not been solved
         if(filledLines.length === 0) {
@@ -171,24 +170,48 @@ class SlitherLinkGame {
 
         //  THIS LOOP ONLY CHECKS FOR A CONTINUOUS LOOP
         //  EVEN IF TRUE, IT MAY NOT BE THE ONLY ONE
-        let currentLine: Line = filledLines[0];
+        const start = filledLines[0];
+        let currentLine: Line = start;
         let currentNode: SLNode = currentLine.start;
         do {
-            currentNode = currentLine.getOppositeNode(currentNode);
+            if(currentNode === currentLine.nodes[0]) {
+                currentNode = currentLine.nodes[1];
+            }
+            else {
+                currentNode = currentLine.nodes[0];
+            }
 
             //  verify that exactly two filled lines meet at the current node
-            let next: Line | null = currentNode.getNextLineInPath(currentLine);
-            if(next === null) {
+            let ind = currentNode.lines.indexOf(currentLine);
+            const [left, right] = [currentNode.lines[(ind + 1) % 3], currentNode.lines[(ind + 2) % 3]];
+            //  if both opposing lines have the same state, win condition fails regardless of what that state is
+            //  else if exactly one opposing line has state LINE, it is the next line in the path
+            //  else the path ends -> win condition fails
+            if(left.state === right.state) {
                 return false;
             }
-            currentLine = next;
+            else if(left.state === LineState.LINE) {
+                currentLine = left;
+            }
+            else if(right.state === LineState.LINE) {
+                currentLine = right;
+            }
+            else {
+                return false
+            }
 
-        } while(currentLine !== filledLines[0]);
+        } while(currentLine !== start);
 
         //  confirm that every cell on the board "contributes" to the solution
-        for(let row of this.rows) {
-            if(row.some(cell => !cell.contributes)) {
-                return false;
+        for(let i = 0; i < this.rows.length; i++) {
+            for(let j = 0; j < this.rows[i].length; j++) {
+                for(let k = 0; k < this.rows[i][j].lines.length; k++) {
+                    //  a given cell "contributes" if at leas one of its lines are part of the solution
+                    if(this.rows[i][j].lines[k].state !== LineState.INDET) {
+                        continue;
+                    }
+                    return false;
+                }
             }
         }
 
@@ -197,207 +220,471 @@ class SlitherLinkGame {
 
     private generateRandom(size: number) {
 
-        //  generate the game board
-        //  1. generate unlinked cells in every position
-        //  2. link cells by their shared lines
-        //  3. link lines by their shared nodes
+        // //  generate the game board
+        // //  1. generate unlinked cells in every position
+        // //  2. link cells by their shared lines
+        // //  3. link lines by their shared nodes
+        //
+        // /* 1. generate unlinked cells in every position */
+        // // //  start with the single middle row
+        // // const mid: number = Math.floor(size / 2);
+        // // this.rows[mid] = new Array(size);
+        // // for(let i = 0; i < size; ++i) {
+        // //     let x: number = (i - size / 2 + 0.5) * Cell.DX;
+        // //     this.rows[mid][i] = new Cell(x, 0);
+        // // }
+        // //
+        // // //  width is the number of cells in the current row(s)
+        // // //  height is the number of rows *above/below the middle row*
+        // // let width: number = size - 1;
+        // // let height: number = 1;
+        // //
+        // // //  width decreases while height increases
+        // // //  when they are equal, the diagonal edges have as many cells as
+        // // //  the current row/edge
+        // // while(width > height) {
+        // //
+        // //     let highInd = mid - height;
+        // //     let lowInd = mid + height;
+        // //
+        // //     this.rows[highInd] = new Array(width);
+        // //     this.rows[lowInd] = new Array(width);
+        // //
+        // //     let y1 = -height * Cell.DY;
+        // //     let y2 = height * Cell.DY;
+        // //     let half: number = width / 2;
+        // //
+        // //     for(let i = 0; i < width; ++i) {
+        // //
+        // //         let x: number = (i - half + 0.5) * Cell.DX;
+        // //         this.rows[highInd][i] = new Cell(x, y1);
+        // //         this.rows[lowInd][i] = new Cell(x, y2);
+        // //     }
+        // //
+        // //     --width;
+        // //     ++height;
+        // // }
+        //
+        // /* 2. link cells by their shared lines */
+        // // //  reassign the left line of each cell in the middle row
+        // // for(let i = 1; i < size; ++i) {
+        // //     let cell = this.rows[mid][i];
+        // //     cell.lines[4] = this.rows[mid][i - 1].lines[1];
+        // //     cell.lines[4].cells[1] = cell;
+        // // }
+        // //
+        // // //  reassign the top-right, top-left, and left lines of each cell
+        // // //  above/below the middle row
+        // // width = size - 1;
+        // // height = 1;
+        // // while(width > height) {
+        // //
+        // //     let highInd = mid - height;
+        // //     let lowInd = mid + height;
+        // //
+        // //     let highRow: Cell[] = this.rows[highInd];
+        // //     let lowRow: Cell[] = this.rows[lowInd];
+        // //     for(let i = 0; i < width; ++i) {
+        // //
+        // //         //  check the "previous" (closer to center) rows
+        // //         let prevHigh: Cell[] = this.rows[highInd + 1];
+        // //         let prevLow: Cell[] = this.rows[lowInd - 1];
+        // //
+        // //         let highCell: Cell = highRow[i];
+        // //         let lowCell: Cell = lowRow[i];
+        // //
+        // //         //  link top left (i=5)/bottom left (i=3) lines (both are
+        // //         //  defined for all cells)
+        // //         highCell.lines[3] = prevHigh[i].lines[0];
+        // //         highCell.lines[3].cells[1] = highCell;
+        // //
+        // //         lowCell.lines[5] = prevLow[i].lines[2];
+        // //         lowCell.lines[5].cells[1] = lowCell;
+        // //
+        // //         //  link the top right (i=0)/bottom (i=2) lines (both are
+        // //         //  defined for all cells)
+        // //         highCell.lines[2] = prevHigh[i + 1].lines[5];
+        // //         highCell.lines[2].cells[1] = highCell;
+        // //
+        // //         lowCell.lines[0] = prevLow[i + 1].lines[3];
+        // //         lowCell.lines[0].cells[1] = lowCell;
+        // //
+        // //         if(i > 0) {
+        // //
+        // //             //  link left lines of cell1 & cell2 (undefined for the first
+        // //             //  cell in a row)
+        // //             highCell.lines[4] = highRow[i - 1].lines[1];
+        // //             highCell.lines[4].cells[1] = highCell;
+        // //
+        // //             lowCell.lines[4] = lowRow[i - 1].lines[1];
+        // //             lowCell.lines[4].cells[1] = lowCell;
+        // //         }
+        // //     }
+        // //
+        // //     ++height;
+        // //     --width;
+        // // }
+        //
+        // /* 3. link lines by their shared nodes */
+        // // //  reassign nodes in the middle row
+        // // /*
+        // //          / F
+        // //        /     \
+        // //      L         \
+        // //     |           ^
+        // //     |           |
+        // //     |           v
+        // //      F         /
+        // //        \     /
+        // //          \ L
+        // //
+        // //     arrows point *away* from line whose node is reassigned/discarded
+        // //  */
+        // // for(let i = 0; i < size; ++i) {
+        // //     let cell = this.rows[mid][i];
+        // //
+        // //     //  lines[4] is reversed in first cell
+        // //     if(i === 0) {
+        // //         cell.lines[5].start = cell.lines[4].end;
+        // //         cell.lines[3].end = cell.lines[4].start;
+        // //     }
+        // //     else {
+        // //         cell.lines[5].start = cell.lines[4].start;
+        // //         cell.lines[3].end = cell.lines[4].end;
+        // //     }
+        // //
+        // //     cell.lines[0].start = cell.lines[5].end;
+        // //     cell.lines[2].end = cell.lines[3].start;
+        // //
+        // //     cell.lines[1].start = cell.lines[0].end;
+        // //     cell.lines[1].end = cell.lines[2].start;
+        // // }
+        // //
+        // // //  reassign nodes in rows above/below the middle row
+        // // /*
+        // //     First cell:         remaining cells:
+        // //
+        // //          / F                    / F
+        // //        /     \                /     \
+        // //      L         \            L         \
+        // // t   |           ^          |           ^
+        // // o   |           |          |           |
+        // // p   v*          v          |           v
+        // //      \         /            \         /
+        // //        \     /                \     /
+        // //          \ /                    \ /
+        // // _____________________________________________
+        // //
+        // //          / \                    / \
+        // //        /     \                /     \
+        // //      /         \            /         \
+        // // b   ^*          ^          |           ^
+        // // o   |           |          |           |
+        // // t   |           v          |           v
+        // // t    F         /            F         /
+        // // o      \     /                \     /
+        // // m        \ L                    \ L
+        // //
+        // //
+        // //      * indicates link is only made for the first cell in a row
+        // //  */
+        // // width = size - 1;
+        // // height = 1;
+        // // while(width > height) {
+        // //
+        // //     let highRow: Cell[] = this.rows[mid - height];
+        // //     let lowRow: Cell[] = this.rows[mid + height];
+        // //
+        // //     for(let i = 0; i < width; ++i) {
+        // //
+        // //         let highCell: Cell = highRow[i];
+        // //         let lowCell: Cell = lowRow[i];
+        // //
+        // //         highCell.lines[0].start = highCell.lines[5].end;
+        // //         highCell.lines[1].end = highCell.lines[2].end;
+        // //         highCell.lines[1].start = highCell.lines[0].end;
+        // //
+        // //         lowCell.lines[2].end = lowCell.lines[3].start;
+        // //         lowCell.lines[1].end = lowCell.lines[2].start;
+        // //         lowCell.lines[1].start = lowCell.lines[0].start;
+        // //
+        // //         if(i === 0) {
+        // //             highCell.lines[5].start = highCell.lines[4].end;
+        // //             lowCell.lines[3].end = lowCell.lines[4].start;
+        // //         }
+        // //         else {
+        // //             highCell.lines[5].start = highCell.lines[4].start;
+        // //             lowCell.lines[3].end = lowCell.lines[4].end;
+        // //         }
+        // //     }
+        // //
+        // //     --width;
+        // //     ++height;
+        // // }
+        //  this structure only includes essential references
 
-        /* 1. generate unlinked cells in every position */
-        //  start with the single middle row
-        const mid: number = Math.floor(size / 2);
-        this.rows[mid] = new Array(size);
-        for(let i = 0; i < size; ++i) {
-            let x: number = (i - size / 2 + 0.5) * Cell.DX;
-            this.rows[mid][i] = new Cell(x, 0);
-        }
-
-        //  width is the number of cells in the current row(s)
-        //  height is the number of rows *above/below the middle row*
-        let width: number = size - 1;
-        let height: number = 1;
-
-        //  width decreases while height increases
-        //  when they are equal, the diagonal edges have as many cells as
-        //  the current row/edge
-        while(width > height) {
-
-            let highInd = mid - height;
-            let lowInd = mid + height;
-
-            this.rows[highInd] = new Array(width);
-            this.rows[lowInd] = new Array(width);
-
-            let y1 = -height * Cell.DY;
-            let y2 = height * Cell.DY;
-            let half: number = width / 2;
-
-            for(let i = 0; i < width; ++i) {
-
-                let x: number = (i - half + 0.5) * Cell.DX;
-                this.rows[highInd][i] = new Cell(x, y1);
-                this.rows[lowInd][i] = new Cell(x, y2);
+        //  get the raw cell at grid position [i, j]
+        //  i given the stem position, j gives the branch position (both are zero-indexed)
+        function get_cell_json_at(i: number, j: number): cell_json {
+            if((i + j) >= size || j > (size - 1) / 2) {
+                throw new Error(`invalid grid position [${i}, ${j}] for grid of size ${size}`);
             }
-
-            --width;
-            ++height;
-        }
-
-        /* 2. link cells by their shared lines */
-        //  reassign the left line of each cell in the middle row
-        for(let i = 1; i < size; ++i) {
-            let cell = this.rows[mid][i];
-            cell.lines[4] = this.rows[mid][i - 1].lines[1];
-            cell.lines[4].cells[1] = cell;
-        }
-
-        //  reassign the top-right, top-left, and left lines of each cell
-        //  above/below the middle row
-        width = size - 1;
-        height = 1;
-        while(width > height) {
-
-            let highInd = mid - height;
-            let lowInd = mid + height;
-
-            let highRow: Cell[] = this.rows[highInd];
-            let lowRow: Cell[] = this.rows[lowInd];
-            for(let i = 0; i < width; ++i) {
-
-                //  check the "previous" (closer to center) rows
-                let prevHigh: Cell[] = this.rows[highInd + 1];
-                let prevLow: Cell[] = this.rows[lowInd - 1];
-
-                let highCell: Cell = highRow[i];
-                let lowCell: Cell = lowRow[i];
-
-                //  link top left (i=5)/bottom left (i=3) lines (both are
-                //  defined for all cells)
-                highCell.lines[3] = prevHigh[i].lines[0];
-                highCell.lines[3].cells[1] = highCell;
-
-                lowCell.lines[5] = prevLow[i].lines[2];
-                lowCell.lines[5].cells[1] = lowCell;
-
-                //  link the top right (i=0)/bottom (i=2) lines (both are
-                //  defined for all cells)
-                highCell.lines[2] = prevHigh[i + 1].lines[5];
-                highCell.lines[2].cells[1] = highCell;
-
-                lowCell.lines[0] = prevLow[i + 1].lines[3];
-                lowCell.lines[0].cells[1] = lowCell;
-
-                if(i > 0) {
-
-                    //  link left lines of cell1 & cell2 (undefined for the first
-                    //  cell in a row)
-                    highCell.lines[4] = highRow[i - 1].lines[1];
-                    highCell.lines[4].cells[1] = highCell;
-
-                    lowCell.lines[4] = lowRow[i - 1].lines[1];
-                    lowCell.lines[4].cells[1] = lowCell;
+            let cell: cell_json = root;
+            while(i > 0) {
+                const temp = cell.cells[rt];
+                if(!temp) {
+                    console.debug('undefined child stem cell of %o', cell);
+                    throw new TypeError('undefined cell reference');
                 }
+                cell = temp;
+                i--;
             }
-
-            ++height;
-            --width;
+            const dir = j >= 0 ? up : dn;
+            j = Math.abs(j);
+            while(j > 0) {
+                const temp = cell.cells[dir];
+                if(!temp) {
+                    console.debug('undefined child branch cell of %o', cell);
+                    throw new TypeError('undefined cell reference');
+                }
+                cell = temp;
+                j--;
+            }
+            return cell;
         }
 
-        /* 3. link lines by their shared nodes */
-        //  reassign nodes in the middle row
-        /*
-                 / F
-               /     \
-             L         \
-            |           ^
-            |           |
-            |           v
-             F         /
-               \     /
-                 \ L
+        type treeNode = {stem: Cell, branches: Cell[][]};
 
-            arrows point *away* from line whose node is reassigned/discarded
-         */
-        for(let i = 0; i < size; ++i) {
-            let cell = this.rows[mid][i];
+        //  get a raw structure of (mostly) unlinked lines/cells
+        const root: cell_json = make_stem_cell(size);
 
-            //  lines[4] is reversed in first cell
-            if(i === 0) {
-                cell.lines[5].start = cell.lines[4].end;
-                cell.lines[3].end = cell.lines[4].start;
+        const dx = Cell.DX / 2;
+        const dy = Cell.DY / 3;
+        let tree: treeNode[] = [];
+        for(let i = 0; i < size; i++) {
+
+            const raw = get_cell_json_at(i, 0);
+
+            //  x, y relative to root cell
+            const [x0, y0] = [
+                (i / 2) * Cell.DX,
+                0
+            ];
+
+            let nodes: SLNode[];
+            let lines: Line[];
+            if(tree.length) {
+                nodes = [
+                    tree[i - 1].branches[1][0].nodes[2],
+                    new SLNode(x0 + dx, y0 - dy),
+                    new SLNode(x0 + dx, y0 + dy),
+                    tree[i - 1].branches[1][1].nodes[1],
+                    tree[i - 1].stem.nodes[2],
+                    tree[i - 1].stem.nodes[1],
+                ];
+
+                lines = [
+                    new Line(nodes[0], nodes[1]),
+                    new Line(nodes[1], nodes[2]),
+                    new Line(nodes[2], nodes[3]),
+                    tree[i - 1].branches[1][1].lines[0],
+                    tree[i - 1].stem.lines[1],
+                    tree[i - 1].branches[1][0].lines[2]
+                ];
             }
             else {
-                cell.lines[5].start = cell.lines[4].start;
-                cell.lines[3].end = cell.lines[4].end;
+                nodes = [
+                    new SLNode(x0, y0 - 2 * dy),
+                    new SLNode(x0 + dx, y0 - dy),
+                    new SLNode(x0 + dx, y0 + dy),
+                    new SLNode(x0, y0 + 2 * dy),
+                    new SLNode(x0 - dx, y0 + dy),
+                    new SLNode(x0 - dx, y0 - dy)
+                ];
+
+                lines = [
+                    new Line(nodes[0], nodes[1]),
+                    new Line(nodes[1], nodes[2]),
+                    new Line(nodes[2], nodes[3]),
+                    new Line(nodes[3], nodes[4]),
+                    new Line(nodes[4], nodes[5]),
+                    new Line(nodes[5], nodes[0])
+                ];
             }
 
-            cell.lines[0].start = cell.lines[5].end;
-            cell.lines[2].end = cell.lines[3].start;
+            let stem: Cell = new Cell(x0, y0, lines, nodes, raw);
+            for(let l = 0; l < lines.length; l++) {
+                lines[l].addCell(stem);
+            }
 
-            cell.lines[1].start = cell.lines[0].end;
-            cell.lines[1].end = cell.lines[2].start;
-        }
+            let branches: Cell[][] = [];
+            for(let j = 0; j < (size - 1) / 2 && (j + i) < size; j++) {
 
-        //  reassign nodes in rows above/below the middle row
-        /*
-            First cell:         remaining cells:
+                const hiJ = get_cell_json_at(i, j);
+                const loJ = get_cell_json_at(i, -j);
 
-                 / F                    / F
-               /     \                /     \
-             L         \            L         \
-        t   |           ^          |           ^
-        o   |           |          |           |
-        p   v*          v          |           v
-             \         /            \         /
-               \     /                \     /
-                 \ /                    \ /
-        _____________________________________________
+                //  x, y relative to root cell
+                const [x0, y0] = [
+                    (i + j / 2) * Cell.DX,
+                    (j * Cell.DY)
+                ];
 
-                 / \                    / \
-               /     \                /     \
-             /         \            /         \
-        b   ^*          ^          |           ^
-        o   |           |          |           |
-        t   |           v          |           v
-        t    F         /            F         /
-        o      \     /                \     /
-        m        \ L                    \ L
+                let hiNodes: SLNode[];
+                let loNodes: SLNode[];
+                let hiLines: Line[];
+                let loLines: Line[];
+                if(tree.length && branches.length) {
+                    hiNodes = [
+                        new SLNode(x0, y0 - 2 * dy),
+                        new SLNode(x0 + dx, y0 - dy),
+                        new SLNode(x0 + dx, y0 + dy),
+                        branches[j - 1][0].nodes[1],
+                        tree[i - 1].branches[j][0].nodes[2],
+                        tree[i - 1].branches[j][1].nodes[1]
+                    ];
+                    loNodes = [
+                        branches[j - 1][1].nodes[3],
+                        new SLNode(x0 + dx, - y0 - dy),
+                        new SLNode(x0 + dx, - y0 + dy),
+                        new SLNode(x0, - y0 + 2 * dy),
+                        tree[i - 1].branches[j][1].nodes[2],
+                        tree[i - 1].branches[j][1].nodes[1]
+                    ];
 
+                    hiLines = [
+                        new Line(hiNodes[0], hiNodes[1]),
+                        new Line(hiNodes[1], hiNodes[2]),
+                        new Line(hiNodes[2], hiNodes[3]),
+                        branches[j - 1][0].lines[3],
+                        tree[i - 1].branches[j][0].lines[1],
+                        new Line(hiNodes[5], hiNodes[0])
+                    ];
+                    loLines = [
+                        new Line(loNodes[0], loNodes[1]),
+                        new Line(loNodes[1], loNodes[2]),
+                        new Line(loNodes[2], loNodes[3]),
+                        new Line(loNodes[3], loNodes[4]),
+                        tree[j - 1].branches[j][1].lines[1],
+                        branches[j - 1][1].lines[2],
+                    ];
+                }
+                else if(branches.length) {
+                    hiNodes = [
+                        new SLNode(x0, y0 - 2 * dy),
+                        new SLNode(x0 + dx, y0 - dy),
+                        new SLNode(x0 + dx, y0 + dy),
+                        branches[j - 1][0].nodes[1],
+                        branches[j - 1][0].nodes[0],
+                        new SLNode(x0 - dx, y0 - dy)
+                    ];
+                    loNodes = [
+                        branches[j - 1][1].nodes[2],
+                        new SLNode(x0 + dx, - y0 - dy),
+                        new SLNode(x0 + dx, - y0 + dy),
+                        new SLNode(x0, - y0 + 2 * dy),
+                        new SLNode(x0 - dx, - y0 + dy),
+                        branches[j - 1][1].nodes[3],
+                    ];
 
-             * indicates link is only made for the first cell in a row
-         */
-        width = size - 1;
-        height = 1;
-        while(width > height) {
-
-            let highRow: Cell[] = this.rows[mid - height];
-            let lowRow: Cell[] = this.rows[mid + height];
-
-            for(let i = 0; i < width; ++i) {
-
-                let highCell: Cell = highRow[i];
-                let lowCell: Cell = lowRow[i];
-
-                highCell.lines[0].start = highCell.lines[5].end;
-                highCell.lines[1].end = highCell.lines[2].end;
-                highCell.lines[1].start = highCell.lines[0].end;
-
-                lowCell.lines[2].end = lowCell.lines[3].start;
-                lowCell.lines[1].end = lowCell.lines[2].start;
-                lowCell.lines[1].start = lowCell.lines[0].start;
-
-                if(i === 0) {
-                    highCell.lines[5].start = highCell.lines[4].end;
-                    lowCell.lines[3].end = lowCell.lines[4].start;
+                    hiLines = [
+                        new Line(hiNodes[0], hiNodes[1]),
+                        new Line(hiNodes[1], hiNodes[2]),
+                        new Line(hiNodes[2], hiNodes[3]),
+                        branches[j - 1][0].lines[3],
+                        new Line(hiNodes[4], hiNodes[5]),
+                        new Line(hiNodes[5], hiNodes[0])
+                    ];
+                    loLines = [
+                        new Line(loNodes[0], loNodes[1]),
+                        new Line(loNodes[1], loNodes[2]),
+                        new Line(loNodes[2], loNodes[3]),
+                        new Line(loNodes[3], loNodes[4]),
+                        branches[j - 1][1].lines[2],
+                        new Line(loNodes[5], loNodes[0])
+                    ];
                 }
                 else {
-                    highCell.lines[5].start = highCell.lines[4].start;
-                    lowCell.lines[3].end = lowCell.lines[4].end;
-                }
-            }
+                    hiNodes = [
+                        new SLNode(x0, y0 - 2 * dy),
+                        new SLNode(x0 + dx, y0 - dy),
+                        new SLNode(x0 + dx, y0 + dy),
+                        new SLNode(x0, y0 + 2 * dy),
+                        new SLNode(x0 - dx, y0 + dy),
+                        new SLNode(x0 - dx, y0 - dy)
+                    ];
+                    loNodes = [
+                        new SLNode(x0, - y0 - 2 * dy),
+                        new SLNode(x0 + dx, - y0 - dy),
+                        new SLNode(x0 + dx, - y0 + dy),
+                        new SLNode(x0, - y0 + 2 * dy),
+                        new SLNode(x0 - dx, - y0 + dy),
+                        new SLNode(x0 - dx, - y0 - dy)
+                    ];
 
-            --width;
-            ++height;
+                    hiLines = [
+                        new Line(hiNodes[0], hiNodes[1]),
+                        new Line(hiNodes[1], hiNodes[2]),
+                        new Line(hiNodes[2], hiNodes[3]),
+                        new Line(hiNodes[3], hiNodes[4]),
+                        new Line(hiNodes[4], hiNodes[5]),
+                        new Line(hiNodes[5], hiNodes[0])
+                    ];
+                    loLines = [
+                        new Line(loNodes[0], loNodes[1]),
+                        new Line(loNodes[1], loNodes[2]),
+                        new Line(loNodes[2], loNodes[3]),
+                        new Line(loNodes[3], loNodes[4]),
+                        new Line(loNodes[4], loNodes[5]),
+                        new Line(loNodes[5], loNodes[0])
+                    ];
+                }
+
+                const hiCell: Cell = new Cell(x0, y0, hiLines, hiNodes, hiJ);
+                const loCell: Cell = new Cell(x0, -y0, loLines, loNodes, loJ);
+                for(let l = 0; l < hiLines.length; l++) {
+                    hiLines[l].addCell(hiCell);
+                }
+                for(let l = 0; l < loLines.length; l++) {
+                    loLines[l].addCell(loCell);
+                }
+
+                branches[j] = [hiCell, loCell];
+            }
+            this.tree[i] = {
+                stem: stem,
+                branches: branches
+            };
         }
+
+        //  get x, y from i, j
+        //  make nodes with x, y coords
+        //  make lines with nodes
+        //   - add lines to nodes
+        //  make cell with lines
+        //  - add cell to lines
+        //  make child cell with new i, j
+
+        //  define a recursive function for traversing the structure
+        // function configure_wrapper(cell: cell_json, lines: (Line | null)[] = [null, null, null, null, null, null]) {
+        //     //  where not already defined in 'line' argument, construct Line
+        //     //  instances from raw data
+        //     if(lines.length !== 6) {
+        //         console.warn('lines array should have length of 6 - received %o', lines);
+        //     }
+        //     for(let i = 0; i < lines.length; i++) {
+        //         if(lines[i] === null) {
+        //             lines[i] = new Line()
+        //         }
+        //     }
+        //
+        //     //  construct a cell from lines
+        //
+        //     //  wrap child cells: branches first, then next stem
+        //     //  pass an array of shared Lines in positions relevant to the
+        //     //  child Cell
+        // }
+
+        //  construct & link class instances as wrappers around the raw data
     }
     handleMouseMove(ev: MouseEvent): void {
 

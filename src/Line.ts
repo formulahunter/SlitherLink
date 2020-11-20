@@ -21,12 +21,11 @@ class Line {
      *  on the expected side (i.e. may point left instead of right for one cell
      *  because it points right for the other; see explanation of "sides" above)
      */
-    cells: [Cell, Cell | null];
+    cells: Cell[] = [];
     state: LineState = LineState.INDET;
 
-    constructor(start: SLNode, end: SLNode, inside: Cell) {
+    constructor(start: SLNode, end: SLNode) {
         this.nodes = [start, end];
-        this.cells = [inside, null];
     }
 
     draw(ctx: CanvasRenderingContext2D): void {
@@ -89,11 +88,17 @@ class Line {
         this.cells[0] = inside;
     }
 
-    get outside(): Cell | null {
+    get outside(): Cell {
         return this.cells[1];
     }
-    set outside(outside: Cell | null) {
+    set outside(outside: Cell) {
         this.cells[1] = outside;
+    }
+
+    addCell(cell: Cell) {
+        if(!this.cells.includes(cell)) {
+            this.cells.push(cell);
+        }
     }
 }
 

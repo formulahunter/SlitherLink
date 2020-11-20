@@ -1,75 +1,47 @@
 import CSSColor from './CSSColor.js';
 import Line from './Line.js';
 import SLNode from './SLNode.js';
+import { cell_json } from './types.js';
+
+// define these locally just for convenience
+
 
 class Cell {
 
+    //  radius from center to "corner"
     static RADIUS = 15;
 
-    //  dx, dy measured from center of hexagon
+    //  dx, dy between neighboring hexagons, e.g. center-to-center
     static DX = Cell.RADIUS * Math.sqrt(3);
     static DY = Cell.RADIUS * 1.5;
+
+    private readonly json: cell_json;
 
     //  public nominal coordinates (at center of hexagon)
     x: number;
     y: number;
 
     count: number | null = null;
-    lines: [Line, Line, Line, Line, Line, Line];
+    lines: Line[];
+    nodes: SLNode[];
 
     //  true while the mouse is above this specific cell
     mouse: boolean = false;
     private _path: Path2D | null = null;
 
-    constructor(x: number, y: number) {
+    constructor(x: number, y: number, lines: Line[], nodes: SLNode[], json: cell_json) {
 
+        this.json = json;
         this.x = x;
         this.y = y;
 
-        const x0 = this.x;
-        const y0 = this.y;
-        const dx = Cell.DX / 2;
-        const dy = Cell.DY / 3;
+        this.nodes = nodes.slice();
+        this.lines = lines.slice();
 
-        // path.arc(x0, y0, 1, 0, 2 * Math.PI);
-
-        let nodes: SLNode[] = [
-            new SLNode(x0, y0 - 2 * dy, this),
-            new SLNode(x0 + dx, y0 - dy, this),
-            new SLNode(x0 + dx, y0 + dy, this),
-            new SLNode(x0, y0 + 2 * dy, this),
-            new SLNode(x0 - dx, y0 + dy, this),
-            new SLNode(x0 - dx, y0 - dy, this)
-        ];
-
-        this.lines = [
-            new Line(nodes[0], nodes[1], this),
-            new Line(nodes[1], nodes[2], this),
-            new Line(nodes[2], nodes[3], this),
-            new Line(nodes[3], nodes[4], this),
-            new Line(nodes[4], nodes[5], this),
-            new Line(nodes[5], nodes[0], this)
-        ];
-
-        //  Properly link lines to their respective nodes (replace instance in
-        //  the "dummy" lines[1] and lines[2] slots with the correct instances)
-        nodes[0].lines = [this.lines[0], this.lines[5]];
-        nodes[1].lines = [this.lines[1], this.lines[0]];
-        nodes[2].lines = [this.lines[2], this.lines[1]];
-        nodes[3].lines = [this.lines[3], this.lines[2]];
-        nodes[4].lines = [this.lines[4], this.lines[3]];
-        nodes[5].lines = [this.lines[5], this.lines[4]];
-
-        //  assign a count to ~1/3 of all cells
-        if(Math.random() > 2 / 3) {
-            this.count = Math.floor(6 * Math.random());
-        }
-    }
-
-    /** check that this cell has at least 1 edge contributing to the solution
-     *  (i.e. either proven or disproven to be a line, but not indeterminate) */
-    get contributes(): boolean {
-        return this.lines.some(ln => !ln.indet);
+        // //  assign a count to ~1/3 of all cells
+        // if(Math.random() > 2 / 3) {
+        //     this.count = Math.floor(6 * Math.random());
+        // }
     }
 
     getNeighbor(line: number | Line): Cell | null {
