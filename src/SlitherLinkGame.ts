@@ -23,7 +23,10 @@ class SlitherLinkGame {
     static frameRequest: number = 0;
 
     //  next state to calculate on resuming simulation
-    static resumeState: bigint = SlitherLinkGame.initialState;
+    static resumeState: bigint = BigInt(-1);
+
+    //  server request on initial page load
+    static progressRequest: Promise<Response> = fetch('/progress', {method: 'GET'});
 
     //  periodic logging parameters
     static logPeriod: number = 60 * 1000;   //  milliseconds between log messages
@@ -83,7 +86,20 @@ class SlitherLinkGame {
     /** iterate through all possible combinations of line states (on/off) to
      *  identify valid solutions
      */
-    combinate(initialState?: bigint): void {
+    async combinate(initialState?: bigint): Promise<void> {
+        //  if this is the first time spinning up the sim, get progress/initial state from the server
+        //  still give priority to the 'initialState' argument, if provided
+        if(!initialState && SlitherLinkGame.resumeState === BigInt(-1)) {
+            let res = await SlitherLinkGame.progressRequest;
+            try {
+                SlitherLinkGame.resumeState = BigInt(await res.text());
+            }
+            catch(er) {
+                console.error(er);
+                console.error('unable to parse response from server progress request\nfalling back to \'initialState\'');
+                SlitherLinkGame.resumeState = SlitherLinkGame.initialState;
+            }
+        }
 
         //  record/log starting time & initial state for this run
         SlitherLinkGame.startTime = performance.now();
@@ -104,24 +120,25 @@ class SlitherLinkGame {
         //  un-set the frame request in case this method does not run to completion (where a new request ID will be assigned)
         SlitherLinkGame.frameRequest = 0;
 
+        for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
+
+            this.setState(currentState, lines);
+            if(this.checkWin()) {
+                SlitherLinkGame.validLoopStates.push(currentState);
+                // console.info(`new win state: ${currentState}\n`
+                //     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
+            }
+
+            currentState++;
+        }
+        //  update the live progress locally and on the server
+        SlitherLinkGame.resumeState = currentState;
         if(currentTime > SlitherLinkGame.lastLog + SlitherLinkGame.logPeriod) {
             this.logProgress(currentState);
             this.logCurrentRun(currentState, currentTime);
             SlitherLinkGame.lastLog = currentTime;
         }
 
-        for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
-
-            this.setState(currentState, lines);
-            if(this.checkWin()) {
-                SlitherLinkGame.validLoopStates.push(currentState);
-                console.info(`new win state: ${currentState}\n`
-                    + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
-            }
-
-            currentState++;
-        }
-        SlitherLinkGame.resumeState = currentState;
         this.draw(400, 300);
 
         //  assign the new request id to be used to pause simulation in a canvas 'click' event
@@ -422,6 +439,7 @@ class SlitherLinkGame {
 
             let progress: number = Number(BigInt(1000) * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
             let percent = `${(Number(progress) / 10).toFixed(2)}%`;
+            this.logProgress(SlitherLinkGame.resumeState - BigInt(1));
             this.logCurrentRun(SlitherLinkGame.resumeState - BigInt(1));
             console.log(`paused: next state to compute is ${SlitherLinkGame.resumeState} (${percent})`);
         }
@@ -483,10 +501,27 @@ class SlitherLinkGame {
     }
 
     /** log big-picture progress */
-    logProgress(currentState: bigint): void {
+    async logProgress(currentState: bigint): Promise<void> {
         SlitherLinkGame.stateProgress = Number(BigInt(1000) * currentState / SlitherLinkGame.numStates);
+
+        //  POST current state to server
+        const req = fetch('/progress', {
+            method: 'POST',
+            body: JSON.stringify({progress: currentState.toString()}),
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: '*'
+            }
+        });
         const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
         console.log(`${currentState} of ${SlitherLinkGame.numStates} states checked (${percent}%)`);
+
+        const res = await req;
+        if(res.status !== 200) {
+            console.warn(`unexpected status code received from server progress update: ${res.status} - ${res.statusText}\n`
+                + 'verify that progress was written to file');
+        }
+
     }
     /** log stats of current simulation run (since started/resumed) */
     logCurrentRun(currentState: bigint, currentTime: DOMHighResTimeStamp = performance.now()): void {
