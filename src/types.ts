@@ -1,11 +1,16 @@
-/** define direction indices in variables for consistency & ease of
+/** define a dictionary of direction key-value pairs for consistency & ease of
  * maintenance */
-const up = 0;
-const rt = 1;
-const dn = 2;
-const up_op = 3;
-const lf = 4;
-const dn_op = 5;
+export const hex_dirs = {
+    up: 0,
+    rt: 1,
+    dn: 2,
+    up_op: 3,
+    lf: 4,
+    dn_op: 5
+};
+
+//  local constants for convenience
+const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
 /** map each direction index to its opposite */
 const opps: number[] = [];
