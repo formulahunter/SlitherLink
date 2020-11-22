@@ -142,7 +142,7 @@ export function make_stem_cell(length: number): cell_json {
         const nextUpper = smear_branch(next, up);
         const nextLower = smear_branch(next, dn);
 
-        for(let i = 0; i < length - 1; i++) {
+        for(let i = 0; i < branchSize; i++) {   //  'length' is not valid here because branches toward the right of the board have fewer cells
             nextUpper[i].lines[dn_op] = null;
             nextUpper[i].lines[lf] = null;
 

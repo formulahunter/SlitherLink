@@ -46,7 +46,7 @@ class SlitherLinkGame {
     //  container arrays
     private rows: Cell[][];
     private readonly lines: Line[] = [];
-    tree: {stem: Cell, branches: Cell[][]}[] = [];
+    board: Cell[][] = [];
 
     /** construct SlitherLinkGame with a given board size
      *
@@ -220,214 +220,69 @@ class SlitherLinkGame {
 
     private generateRandom(size: number) {
 
-        // //  generate the game board
-        // //  1. generate unlinked cells in every position
-        // //  2. link cells by their shared lines
-        // //  3. link lines by their shared nodes
-        //
-        // /* 1. generate unlinked cells in every position */
-        // // //  start with the single middle row
-        // // const mid: number = Math.floor(size / 2);
-        // // this.rows[mid] = new Array(size);
-        // // for(let i = 0; i < size; ++i) {
-        // //     let x: number = (i - size / 2 + 0.5) * Cell.DX;
-        // //     this.rows[mid][i] = new Cell(x, 0);
-        // // }
-        // //
-        // // //  width is the number of cells in the current row(s)
-        // // //  height is the number of rows *above/below the middle row*
-        // // let width: number = size - 1;
-        // // let height: number = 1;
-        // //
-        // // //  width decreases while height increases
-        // // //  when they are equal, the diagonal edges have as many cells as
-        // // //  the current row/edge
-        // // while(width > height) {
-        // //
-        // //     let highInd = mid - height;
-        // //     let lowInd = mid + height;
-        // //
-        // //     this.rows[highInd] = new Array(width);
-        // //     this.rows[lowInd] = new Array(width);
-        // //
-        // //     let y1 = -height * Cell.DY;
-        // //     let y2 = height * Cell.DY;
-        // //     let half: number = width / 2;
-        // //
-        // //     for(let i = 0; i < width; ++i) {
-        // //
-        // //         let x: number = (i - half + 0.5) * Cell.DX;
-        // //         this.rows[highInd][i] = new Cell(x, y1);
-        // //         this.rows[lowInd][i] = new Cell(x, y2);
-        // //     }
-        // //
-        // //     --width;
-        // //     ++height;
-        // // }
-        //
-        // /* 2. link cells by their shared lines */
-        // // //  reassign the left line of each cell in the middle row
-        // // for(let i = 1; i < size; ++i) {
-        // //     let cell = this.rows[mid][i];
-        // //     cell.lines[4] = this.rows[mid][i - 1].lines[1];
-        // //     cell.lines[4].cells[1] = cell;
-        // // }
-        // //
-        // // //  reassign the top-right, top-left, and left lines of each cell
-        // // //  above/below the middle row
-        // // width = size - 1;
-        // // height = 1;
-        // // while(width > height) {
-        // //
-        // //     let highInd = mid - height;
-        // //     let lowInd = mid + height;
-        // //
-        // //     let highRow: Cell[] = this.rows[highInd];
-        // //     let lowRow: Cell[] = this.rows[lowInd];
-        // //     for(let i = 0; i < width; ++i) {
-        // //
-        // //         //  check the "previous" (closer to center) rows
-        // //         let prevHigh: Cell[] = this.rows[highInd + 1];
-        // //         let prevLow: Cell[] = this.rows[lowInd - 1];
-        // //
-        // //         let highCell: Cell = highRow[i];
-        // //         let lowCell: Cell = lowRow[i];
-        // //
-        // //         //  link top left (i=5)/bottom left (i=3) lines (both are
-        // //         //  defined for all cells)
-        // //         highCell.lines[3] = prevHigh[i].lines[0];
-        // //         highCell.lines[3].cells[1] = highCell;
-        // //
-        // //         lowCell.lines[5] = prevLow[i].lines[2];
-        // //         lowCell.lines[5].cells[1] = lowCell;
-        // //
-        // //         //  link the top right (i=0)/bottom (i=2) lines (both are
-        // //         //  defined for all cells)
-        // //         highCell.lines[2] = prevHigh[i + 1].lines[5];
-        // //         highCell.lines[2].cells[1] = highCell;
-        // //
-        // //         lowCell.lines[0] = prevLow[i + 1].lines[3];
-        // //         lowCell.lines[0].cells[1] = lowCell;
-        // //
-        // //         if(i > 0) {
-        // //
-        // //             //  link left lines of cell1 & cell2 (undefined for the first
-        // //             //  cell in a row)
-        // //             highCell.lines[4] = highRow[i - 1].lines[1];
-        // //             highCell.lines[4].cells[1] = highCell;
-        // //
-        // //             lowCell.lines[4] = lowRow[i - 1].lines[1];
-        // //             lowCell.lines[4].cells[1] = lowCell;
-        // //         }
-        // //     }
-        // //
-        // //     ++height;
-        // //     --width;
-        // // }
-        //
-        // /* 3. link lines by their shared nodes */
-        // // //  reassign nodes in the middle row
-        // // /*
-        // //          / F
-        // //        /     \
-        // //      L         \
-        // //     |           ^
-        // //     |           |
-        // //     |           v
-        // //      F         /
-        // //        \     /
-        // //          \ L
-        // //
-        // //     arrows point *away* from line whose node is reassigned/discarded
-        // //  */
-        // // for(let i = 0; i < size; ++i) {
-        // //     let cell = this.rows[mid][i];
-        // //
-        // //     //  lines[4] is reversed in first cell
-        // //     if(i === 0) {
-        // //         cell.lines[5].start = cell.lines[4].end;
-        // //         cell.lines[3].end = cell.lines[4].start;
-        // //     }
-        // //     else {
-        // //         cell.lines[5].start = cell.lines[4].start;
-        // //         cell.lines[3].end = cell.lines[4].end;
-        // //     }
-        // //
-        // //     cell.lines[0].start = cell.lines[5].end;
-        // //     cell.lines[2].end = cell.lines[3].start;
-        // //
-        // //     cell.lines[1].start = cell.lines[0].end;
-        // //     cell.lines[1].end = cell.lines[2].start;
-        // // }
-        // //
-        // // //  reassign nodes in rows above/below the middle row
-        // // /*
-        // //     First cell:         remaining cells:
-        // //
-        // //          / F                    / F
-        // //        /     \                /     \
-        // //      L         \            L         \
-        // // t   |           ^          |           ^
-        // // o   |           |          |           |
-        // // p   v*          v          |           v
-        // //      \         /            \         /
-        // //        \     /                \     /
-        // //          \ /                    \ /
-        // // _____________________________________________
-        // //
-        // //          / \                    / \
-        // //        /     \                /     \
-        // //      /         \            /         \
-        // // b   ^*          ^          |           ^
-        // // o   |           |          |           |
-        // // t   |           v          |           v
-        // // t    F         /            F         /
-        // // o      \     /                \     /
-        // // m        \ L                    \ L
-        // //
-        // //
-        // //      * indicates link is only made for the first cell in a row
-        // //  */
-        // // width = size - 1;
-        // // height = 1;
-        // // while(width > height) {
-        // //
-        // //     let highRow: Cell[] = this.rows[mid - height];
-        // //     let lowRow: Cell[] = this.rows[mid + height];
-        // //
-        // //     for(let i = 0; i < width; ++i) {
-        // //
-        // //         let highCell: Cell = highRow[i];
-        // //         let lowCell: Cell = lowRow[i];
-        // //
-        // //         highCell.lines[0].start = highCell.lines[5].end;
-        // //         highCell.lines[1].end = highCell.lines[2].end;
-        // //         highCell.lines[1].start = highCell.lines[0].end;
-        // //
-        // //         lowCell.lines[2].end = lowCell.lines[3].start;
-        // //         lowCell.lines[1].end = lowCell.lines[2].start;
-        // //         lowCell.lines[1].start = lowCell.lines[0].start;
-        // //
-        // //         if(i === 0) {
-        // //             highCell.lines[5].start = highCell.lines[4].end;
-        // //             lowCell.lines[3].end = lowCell.lines[4].start;
-        // //         }
-        // //         else {
-        // //             highCell.lines[5].start = highCell.lines[4].start;
-        // //             lowCell.lines[3].end = lowCell.lines[4].end;
-        // //         }
-        // //     }
-        // //
-        // //     --width;
-        // //     ++height;
-        // // }
-        //  this structure only includes essential references
+        //  get axial (q, r) coordinates from json tree coordinates (stem, branch)
+        function tree_to_axial(i: number, j: number): [number, number] {
+            const ind = j < 0 ? 0 : 1;
+
+            const comp = [i, i + Math.abs(j)];
+            return [
+                comp[ind],
+                comp[1 - ind]
+            ];
+        }
+        //  get raw tree coordinates (stem, branch) from axial coordinates
+        function axial_to_tree(q: number, r: number) {
+            const ind = q < r ? 0 : 1;
+            const a = [q, r];
+            return [
+                a[ind],
+                a[1 - ind] - a[ind]
+            ];
+        }
+
+        //  populate a 2D array of cells references by axial coordinates
+        const board: Cell[][] = [];
+        for(let q = 0; q < size; q++) {
+            board[q] = [];
+        }
+
+        //  get neighbors of the cell at [q, r], arranged in order corresponding to shared line positions
+        function get_neighbors_of(q: number, r: number): (Cell | null)[] {
+            //  validate the given axial coordinates
+            if(q < 0 || q > size - 1) {
+                console.error(`q = ${q} is outside of valid range (0, ${size - 1})`);
+                throw new RangeError('out-of-range axial coordinate q');
+            }
+            if(r < 0 || r > size - 1) {
+                console.error(`r = ${r} is outside of valid range (0, ${size - 1})`);
+                throw new RangeError('out-of-range axial coordinate r');
+            }
+            if(Math.abs(r - q) > (size - 1) / 2) {
+                console.error(`[q, r] = [${q}, ${r}] fails limiting condition ==> abs(${r} - ${q}) > (${size} - 1) / 2`);
+                throw new RangeError('invalid axial coordinates q, r');
+            }
+            const v = Cell.vectors;
+            let neighbors: (Cell | null)[] = [];
+            for(let i = 0; i < v.length; i ++) {
+                const col = board[q + v[i][0]];
+                if(!col) {
+                    neighbors[i] = null;
+                }
+                else {
+                    neighbors[i] = col[r + v[i][1]] || null;
+                }
+            }
+            return neighbors;
+        }
+
+        //  get a raw structure of (mostly) unlinked lines/cells
+        const root: cell_json = make_stem_cell(size);
 
         //  get the raw cell at grid position [i, j]
-        //  i given the stem position, j gives the branch position (both are zero-indexed)
+        //  i gives the stem position, j gives the branch position (both are zero-indexed)
         function get_cell_json_at(i: number, j: number): cell_json {
             if((i + j) >= size || j > (size - 1) / 2) {
-                throw new Error(`invalid grid position [${i}, ${j}] for grid of size ${size}`);
+                throw new Error(`invalid tree position [${i}, ${j}] for grid of size ${size}`);
             }
             let cell: cell_json = root;
             while(i > 0) {
@@ -453,238 +308,64 @@ class SlitherLinkGame {
             return cell;
         }
 
-        type treeNode = {stem: Cell, branches: Cell[][]};
-
-        //  get a raw structure of (mostly) unlinked lines/cells
-        const root: cell_json = make_stem_cell(size);
-
-        const dx = Cell.DX / 2;
-        const dy = Cell.DY / 3;
-        let tree: treeNode[] = [];
+        const dx = Cell.DX;
+        const dy = Cell.DY;
+        const sides = [0, -1, 1];
         for(let i = 0; i < size; i++) {
+            //  create the stem cell (j = 0), then the lower branch (j < 0), then the upper branch (j > 0)
+            for(let s = 0; s < sides.length; s++) {
+                for(let j = sides[s]; Math.abs(j) < (size + 1) / 2 && Math.abs(j) + i < size; j += sides[s]) {
+                    const [q, r] = tree_to_axial(i, j);
+                    const json = get_cell_json_at(i, j);
+                    //  x, y relative to root cell
+                    const [x0, y0] = [
+                        (i + j / 2) * dx,
+                        (j * dy)
+                    ];
 
-            const raw = get_cell_json_at(i, 0);
+                    const nodeRefs: (SLNode | null)[] = [null, null, null, null, null, null];
+                    const lineRefs: (Line | null)[] = [null, null, null, null, null, null];
 
-            //  x, y relative to root cell
-            const [x0, y0] = [
-                (i / 2) * Cell.DX,
-                0
-            ];
+                    const neighbors = get_neighbors_of(q, r);
+                    const [dl, lf, ul] = [neighbors[3], neighbors[4], neighbors[5]];
+                    //  check for left neighbor & copy refs
+                    if(lf) {
+                        nodeRefs[4] = lf.nodes[2];
+                        nodeRefs[5] = lf.nodes[1];
+                        lineRefs[4] = lf.lines[1];
+                    }
+                    //  check for upper left neighbor & copy refs
+                    //  if refs copied from lf, don't overwrite them
+                    if(ul) {
+                        nodeRefs[0] = ul.nodes[2];
+                        nodeRefs[5] = nodeRefs[5] || ul.nodes[3];   //  nodeRefs[5] will be null if not copied from lf
+                        lineRefs[5] = ul.lines[2];
+                    }
+                    //  check for lower left neighbor & copy refs
+                    //  if refs copied from lf, don't overwrite them
+                    if(dl) {
+                        nodeRefs[3] = dl.nodes[1];
+                        nodeRefs[4] = nodeRefs[4] || dl.nodes[0];   //  nodeRefs[4] will be null if not copied from lf
+                        lineRefs[3] = dl.lines[0];
+                    }
 
-            let nodes: SLNode[];
-            let lines: Line[];
-            if(tree.length) {
-                nodes = [
-                    tree[i - 1].branches[1][0].nodes[2],
-                    new SLNode(x0 + dx, y0 - dy),
-                    new SLNode(x0 + dx, y0 + dy),
-                    tree[i - 1].branches[1][1].nodes[1],
-                    tree[i - 1].stem.nodes[2],
-                    tree[i - 1].stem.nodes[1],
-                ];
+                    const cell = new Cell(x0, y0, lineRefs, nodeRefs, json);
+                    for(let n = 0; n < cell.nodes.length; n++) {
+                        cell.nodes[n].addCell(cell);
+                    }
+                    for(let l = 0; l < cell.lines.length; l++) {
+                        cell.lines[l].addCell(cell);
+                    }
+                    board[q][r] = cell;
 
-                lines = [
-                    new Line(nodes[0], nodes[1]),
-                    new Line(nodes[1], nodes[2]),
-                    new Line(nodes[2], nodes[3]),
-                    tree[i - 1].branches[1][1].lines[0],
-                    tree[i - 1].stem.lines[1],
-                    tree[i - 1].branches[1][0].lines[2]
-                ];
+                    //  need to manually break this loop on the middle row
+                    if(s === 0) {
+                        break;
+                    }
+                }
             }
-            else {
-                nodes = [
-                    new SLNode(x0, y0 - 2 * dy),
-                    new SLNode(x0 + dx, y0 - dy),
-                    new SLNode(x0 + dx, y0 + dy),
-                    new SLNode(x0, y0 + 2 * dy),
-                    new SLNode(x0 - dx, y0 + dy),
-                    new SLNode(x0 - dx, y0 - dy)
-                ];
-
-                lines = [
-                    new Line(nodes[0], nodes[1]),
-                    new Line(nodes[1], nodes[2]),
-                    new Line(nodes[2], nodes[3]),
-                    new Line(nodes[3], nodes[4]),
-                    new Line(nodes[4], nodes[5]),
-                    new Line(nodes[5], nodes[0])
-                ];
-            }
-
-            let stem: Cell = new Cell(x0, y0, lines, nodes, raw);
-            for(let l = 0; l < lines.length; l++) {
-                lines[l].addCell(stem);
-            }
-
-            let branches: Cell[][] = [];
-            for(let j = 0; j < (size - 1) / 2 && (j + i) < size; j++) {
-
-                const hiJ = get_cell_json_at(i, j);
-                const loJ = get_cell_json_at(i, -j);
-
-                //  x, y relative to root cell
-                const [x0, y0] = [
-                    (i + j / 2) * Cell.DX,
-                    (j * Cell.DY)
-                ];
-
-                let hiNodes: SLNode[];
-                let loNodes: SLNode[];
-                let hiLines: Line[];
-                let loLines: Line[];
-                if(tree.length && branches.length) {
-                    hiNodes = [
-                        new SLNode(x0, y0 - 2 * dy),
-                        new SLNode(x0 + dx, y0 - dy),
-                        new SLNode(x0 + dx, y0 + dy),
-                        branches[j - 1][0].nodes[1],
-                        tree[i - 1].branches[j][0].nodes[2],
-                        tree[i - 1].branches[j][1].nodes[1]
-                    ];
-                    loNodes = [
-                        branches[j - 1][1].nodes[3],
-                        new SLNode(x0 + dx, - y0 - dy),
-                        new SLNode(x0 + dx, - y0 + dy),
-                        new SLNode(x0, - y0 + 2 * dy),
-                        tree[i - 1].branches[j][1].nodes[2],
-                        tree[i - 1].branches[j][1].nodes[1]
-                    ];
-
-                    hiLines = [
-                        new Line(hiNodes[0], hiNodes[1]),
-                        new Line(hiNodes[1], hiNodes[2]),
-                        new Line(hiNodes[2], hiNodes[3]),
-                        branches[j - 1][0].lines[3],
-                        tree[i - 1].branches[j][0].lines[1],
-                        new Line(hiNodes[5], hiNodes[0])
-                    ];
-                    loLines = [
-                        new Line(loNodes[0], loNodes[1]),
-                        new Line(loNodes[1], loNodes[2]),
-                        new Line(loNodes[2], loNodes[3]),
-                        new Line(loNodes[3], loNodes[4]),
-                        tree[j - 1].branches[j][1].lines[1],
-                        branches[j - 1][1].lines[2],
-                    ];
-                }
-                else if(branches.length) {
-                    hiNodes = [
-                        new SLNode(x0, y0 - 2 * dy),
-                        new SLNode(x0 + dx, y0 - dy),
-                        new SLNode(x0 + dx, y0 + dy),
-                        branches[j - 1][0].nodes[1],
-                        branches[j - 1][0].nodes[0],
-                        new SLNode(x0 - dx, y0 - dy)
-                    ];
-                    loNodes = [
-                        branches[j - 1][1].nodes[2],
-                        new SLNode(x0 + dx, - y0 - dy),
-                        new SLNode(x0 + dx, - y0 + dy),
-                        new SLNode(x0, - y0 + 2 * dy),
-                        new SLNode(x0 - dx, - y0 + dy),
-                        branches[j - 1][1].nodes[3],
-                    ];
-
-                    hiLines = [
-                        new Line(hiNodes[0], hiNodes[1]),
-                        new Line(hiNodes[1], hiNodes[2]),
-                        new Line(hiNodes[2], hiNodes[3]),
-                        branches[j - 1][0].lines[3],
-                        new Line(hiNodes[4], hiNodes[5]),
-                        new Line(hiNodes[5], hiNodes[0])
-                    ];
-                    loLines = [
-                        new Line(loNodes[0], loNodes[1]),
-                        new Line(loNodes[1], loNodes[2]),
-                        new Line(loNodes[2], loNodes[3]),
-                        new Line(loNodes[3], loNodes[4]),
-                        branches[j - 1][1].lines[2],
-                        new Line(loNodes[5], loNodes[0])
-                    ];
-                }
-                else {
-                    hiNodes = [
-                        new SLNode(x0, y0 - 2 * dy),
-                        new SLNode(x0 + dx, y0 - dy),
-                        new SLNode(x0 + dx, y0 + dy),
-                        new SLNode(x0, y0 + 2 * dy),
-                        new SLNode(x0 - dx, y0 + dy),
-                        new SLNode(x0 - dx, y0 - dy)
-                    ];
-                    loNodes = [
-                        new SLNode(x0, - y0 - 2 * dy),
-                        new SLNode(x0 + dx, - y0 - dy),
-                        new SLNode(x0 + dx, - y0 + dy),
-                        new SLNode(x0, - y0 + 2 * dy),
-                        new SLNode(x0 - dx, - y0 + dy),
-                        new SLNode(x0 - dx, - y0 - dy)
-                    ];
-
-                    hiLines = [
-                        new Line(hiNodes[0], hiNodes[1]),
-                        new Line(hiNodes[1], hiNodes[2]),
-                        new Line(hiNodes[2], hiNodes[3]),
-                        new Line(hiNodes[3], hiNodes[4]),
-                        new Line(hiNodes[4], hiNodes[5]),
-                        new Line(hiNodes[5], hiNodes[0])
-                    ];
-                    loLines = [
-                        new Line(loNodes[0], loNodes[1]),
-                        new Line(loNodes[1], loNodes[2]),
-                        new Line(loNodes[2], loNodes[3]),
-                        new Line(loNodes[3], loNodes[4]),
-                        new Line(loNodes[4], loNodes[5]),
-                        new Line(loNodes[5], loNodes[0])
-                    ];
-                }
-
-                const hiCell: Cell = new Cell(x0, y0, hiLines, hiNodes, hiJ);
-                const loCell: Cell = new Cell(x0, -y0, loLines, loNodes, loJ);
-                for(let l = 0; l < hiLines.length; l++) {
-                    hiLines[l].addCell(hiCell);
-                }
-                for(let l = 0; l < loLines.length; l++) {
-                    loLines[l].addCell(loCell);
-                }
-
-                branches[j] = [hiCell, loCell];
-            }
-            this.tree[i] = {
-                stem: stem,
-                branches: branches
-            };
         }
-
-        //  get x, y from i, j
-        //  make nodes with x, y coords
-        //  make lines with nodes
-        //   - add lines to nodes
-        //  make cell with lines
-        //  - add cell to lines
-        //  make child cell with new i, j
-
-        //  define a recursive function for traversing the structure
-        // function configure_wrapper(cell: cell_json, lines: (Line | null)[] = [null, null, null, null, null, null]) {
-        //     //  where not already defined in 'line' argument, construct Line
-        //     //  instances from raw data
-        //     if(lines.length !== 6) {
-        //         console.warn('lines array should have length of 6 - received %o', lines);
-        //     }
-        //     for(let i = 0; i < lines.length; i++) {
-        //         if(lines[i] === null) {
-        //             lines[i] = new Line()
-        //         }
-        //     }
-        //
-        //     //  construct a cell from lines
-        //
-        //     //  wrap child cells: branches first, then next stem
-        //     //  pass an array of shared Lines in positions relevant to the
-        //     //  child Cell
-        // }
-
-        //  construct & link class instances as wrappers around the raw data
+        this.board = board;
     }
     handleMouseMove(ev: MouseEvent): void {
 

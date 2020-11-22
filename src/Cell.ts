@@ -3,18 +3,38 @@ import Line from './Line.js';
 import SLNode from './SLNode.js';
 import { cell_json } from './types.js';
 
-// define these locally just for convenience
-
 
 class Cell {
 
     //  radius from center to "corner"
     static RADIUS = 15;
 
-    //  dx, dy between neighboring hexagons, e.g. center-to-center
-    static DX = Cell.RADIUS * Math.sqrt(3);
-    static DY = Cell.RADIUS * 1.5;
+    //  dx, dy increments between cell nodes for hexagonal cells composed of
+    //  equilateral triangles with sides of length Cell.RADIUS
+    static DX = Cell.RADIUS * Math.sqrt(3) / 2;
+    static DY = Cell.RADIUS / 2;
 
+    //  direction vectors in the axial (q, r) coordinate system
+    static readonly vectors: [number, number][] = [
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [-1, 0],
+        [-1, -1],
+        [0, -1]
+    ];
+
+    //  position offsets (canvas coords) of each node wrt center of cell
+    static readonly nodeOffsets: [number, number][] = [
+        [0, -2 * Cell.DY],
+        [Cell.DX, -Cell.DY],
+        [Cell.DX, Cell.DY],
+        [0, 2 * Cell.DY],
+        [-Cell.DX, Cell.DY],
+        [-Cell.DX, -Cell.DY]
+    ];
+
+    //  original json object literal this Cell instance is derived from
     private readonly json: cell_json;
 
     //  public nominal coordinates (at center of hexagon)
@@ -22,21 +42,37 @@ class Cell {
     y: number;
 
     count: number | null = null;
-    lines: Line[];
-    nodes: SLNode[];
+    lines: Line[] = [];
+    nodes: SLNode[] = [];
 
     //  true while the mouse is above this specific cell
     mouse: boolean = false;
     private _path: Path2D | null = null;
 
-    constructor(x: number, y: number, lines: Line[], nodes: SLNode[], json: cell_json) {
+    constructor(x: number, y: number, lineRefs: (Line | null)[], nodeRefs: (SLNode | null)[], json: cell_json) {
 
         this.json = json;
         this.x = x;
         this.y = y;
 
-        this.nodes = nodes.slice();
-        this.lines = lines.slice();
+        for(let i = 0; i < nodeRefs.length; i++) {
+            const node = nodeRefs[i];
+            if(node instanceof SLNode) {
+                this.nodes[i] = node;
+            }
+            else {
+                this.nodes[i] = new SLNode(x + Cell.nodeOffsets[i][0], y + Cell.nodeOffsets[i][1]);
+            }
+        }
+        for(let i = 0; i < lineRefs.length; i++) {
+            const line = lineRefs[i];
+            if(line instanceof Line) {
+                this.lines[i] = line;
+            }
+            else {
+                this.lines[i] = new Line(this.nodes[i], this.nodes[(i + 1) % 6]);
+            }
+        }
 
         // //  assign a count to ~1/3 of all cells
         // if(Math.random() > 2 / 3) {
@@ -48,10 +84,18 @@ class Cell {
         if(typeof line === 'number') {
             line = this.lines[line];
         }
+        else if(!this.lines.includes(line)) {
+            console.error('line %o does not lie on cell %o', line, this);
+            throw new Error('line does not lie on this cell');
+        }
 
         //  each line is associated with two cells
         //  return the other one (not the one this method was called on)
-        return line.cells[1 - line.cells.indexOf(this)];
+        const cell0 = line.cells[0];
+        if(cell0 === this) {
+            return line.cells[1];
+        }
+        return cell0;
     }
 
     draw(ctx: CanvasRenderingContext2D, text?: string): void {

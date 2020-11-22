@@ -1,3 +1,4 @@
+import Cell from './Cell.js';
 import Line, {LineState} from './Line.js';
 
 
@@ -7,9 +8,21 @@ class SLNode {
 
     dir?: 0 | 1;     //  0 if vertical line points up, 1 if down
     lines: Line[] = [];  //  a node is the intersection
+    cells: Cell[] = [];
 
     constructor(x: number, y: number) {
         this.coords = [x, y];
+    }
+
+    addLine(line: Line): void {
+        if(!this.lines.includes(line)) {
+            this.lines.push(line);
+        }
+    }
+    addCell(cell: Cell) {
+        if(!this.cells.includes(cell)) {
+            this.cells.push(cell);
+        }
     }
 
     countFilled(): number {
