@@ -59,7 +59,7 @@ class SlitherLinkGame {
         this.size = size;
 
         //  define event listeners on canvas element
-        // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
 
         // this.canvas = canvas;
@@ -418,8 +418,9 @@ class SlitherLinkGame {
         //  over so many cells each time mousemove fires (which can easily
         //  happen dozens of times per second)
         this.ctx.translate(400, 300);
+        this.ctx.translate(-(this.size * Cell.DX * 2) / 2, 0);
         for(let i = 0; i < this.cells.length; i++) {
-                this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
+            this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
         }
         this.ctx.resetTransform();
 

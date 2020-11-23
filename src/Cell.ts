@@ -175,22 +175,11 @@ class Cell {
             return this._path;
         }
 
-        //  declare local variables for readability & performance
-        const x0 = this.x;
-        const y0 = this.y;
-        const dx = Cell.DX / 2;
-        const dy = Cell.DY / 3;
-
         let path: Path2D = new Path2D();
-
-        // path.arc(x0, y0, 1, 0, 2 * Math.PI);
-
-        path.moveTo(x0 + dx, y0 + dy);
-        path.lineTo(x0 + dx, y0 - dy);
-        path.lineTo(x0, y0 - 2 * dy);
-        path.lineTo(x0 - dx, y0 - dy);
-        path.lineTo(x0 - dx, y0 + dy);
-        path.lineTo(x0, y0 + 2 * dy);
+        path.moveTo(...this.nodes[0].coords);
+        for(let i = 1; i <= this.nodes.length; i++) {
+            path.lineTo(...this.nodes[i % 6].coords);
+        }
         path.closePath();
 
         this._path = path;
