@@ -37,16 +37,17 @@ class SlitherLinkGame {
     //  states with at least 1 valid loop
     static validLoopStates: bigint[] = [];
 
-    //  1/2 cell width
-    static readonly cellRadius: number = 10;
-
     // private canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
 
+    //  size parameter (number of cells across long diagonal)
+    readonly size: number = -1;
+
     //  container arrays
-    private rows: Cell[][];
-    private readonly lines: Line[] = [];
     board: Cell[][] = [];
+    cells: Cell[] = [];
+    private readonly lines: Line[] = [];
+    private nodes: SLNode[] = [];
 
     /** construct SlitherLinkGame with a given board size
      *
@@ -54,6 +55,8 @@ class SlitherLinkGame {
      * @param canvas - canvas element on which the game will be drawn
      */
     constructor(size: number, canvas: HTMLCanvasElement) {
+
+        this.size = size;
 
         //  define event listeners on canvas element
         // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
@@ -74,16 +77,14 @@ class SlitherLinkGame {
 
         //  the total number of rows will be equal to the given width of the
         //  middle row
-        this.rows = new Array(Math.ceil(size));
         this.generateRandom(size);
-        // this.lines = this.getAllLines();
 
         //  define a number whose 32 binary digits will be used to encode the
         //  state of each line (30 lines total for size = 3)
         SlitherLinkGame.numStates = BigInt(Math.pow(2, this.lines.length));
 
         //  draw the initial board
-        // this.draw(400, 300);
+        this.draw(400, 300);
     }
 
     /** iterate through all possible combinations of line states (on/off) to
@@ -151,7 +152,8 @@ class SlitherLinkGame {
     /** check if the current game state is a valid solution
      *  this is determined by three criteria:
      *  1. every filled line on the board is part of a single, continuous loop
-     *      a. (...what was this for...?)
+     *      a. multiple loops => invalid
+     *      b. any "dangling" lines => invalid
      *  2. every cell's count requirement is satisfied
      *  3. every cell must contribute at least 1 edge to the solution
      *      a. consider including rejected as "contributing" edges, i.e.
@@ -161,18 +163,19 @@ class SlitherLinkGame {
     checkWin(): boolean {
 
         //  find the first line that is "on"
-        let filledLines: Line[] = this.lines.filter(line => line.proven);
+        let filledLines: Line[] = this.lines.filter(line => line.state === LineState.LINE);
 
         //  if no lines are filled in yet, the game has not been solved
         if(filledLines.length === 0) {
             return false;
         }
 
-        //  THIS LOOP ONLY CHECKS FOR A CONTINUOUS LOOP
-        //  EVEN IF TRUE, IT MAY NOT BE THE ONLY ONE
+        //  follow the path until it returns to its start point or ends
+        //  count the number of lines traversed for comparison to filledLines.length
         const start = filledLines[0];
         let currentLine: Line = start;
         let currentNode: SLNode = currentLine.start;
+        let lineCount: number = 1;
         do {
             if(currentNode === currentLine.nodes[0]) {
                 currentNode = currentLine.nodes[1];
@@ -199,19 +202,27 @@ class SlitherLinkGame {
             else {
                 return false
             }
+            lineCount++;
 
         } while(currentLine !== start);
 
+        //  if some filled lines were not traversed, win condition fails
+        if(lineCount < filledLines.length) {
+            return false;
+        }
+
         //  confirm that every cell on the board "contributes" to the solution
-        for(let i = 0; i < this.rows.length; i++) {
-            for(let j = 0; j < this.rows[i].length; j++) {
-                for(let k = 0; k < this.rows[i][j].lines.length; k++) {
-                    //  a given cell "contributes" if at leas one of its lines are part of the solution
-                    if(this.rows[i][j].lines[k].state !== LineState.INDET) {
-                        continue;
-                    }
-                    return false;
+        for(let i = 0; i < this.cells.length; i++) {
+            let contrib = false;
+            for(let k = 0; k < this.cells[i].lines.length; k++) {
+                //  a given cell "contributes" if at least one of its lines are part of the solution
+                if(this.cells[i].lines[k].state !== LineState.INDET) {
+                    contrib = true;
+                    break;
                 }
+            }
+            if(!contrib) {
+                return false;
             }
         }
 
@@ -308,8 +319,8 @@ class SlitherLinkGame {
             return cell;
         }
 
-        const dx = Cell.DX;
-        const dy = Cell.DY;
+        const dx = Cell.DX * 2;
+        const dy = Cell.DY * 3;
         const sides = [0, -1, 1];
         for(let i = 0; i < size; i++) {
             //  create the stem cell (j = 0), then the lower branch (j < 0), then the upper branch (j > 0)
@@ -319,8 +330,8 @@ class SlitherLinkGame {
                     const json = get_cell_json_at(i, j);
                     //  x, y relative to root cell
                     const [x0, y0] = [
-                        (i + j / 2) * dx,
-                        (j * dy)
+                        (i + Math.abs(j) / 2) * dx,
+                        (-j * dy)
                     ];
 
                     const nodeRefs: (SLNode | null)[] = [null, null, null, null, null, null];
@@ -350,15 +361,20 @@ class SlitherLinkGame {
                     }
 
                     const cell = new Cell(x0, y0, lineRefs, nodeRefs, json);
+                    this.addCell(cell);
                     for(let n = 0; n < cell.nodes.length; n++) {
-                        cell.nodes[n].addCell(cell);
+                        if(nodeRefs[n] === null) {
+                            this.addNode(cell.nodes[n]);
+                        }
                     }
                     for(let l = 0; l < cell.lines.length; l++) {
-                        cell.lines[l].addCell(cell);
+                        if(lineRefs[l] === null) {
+                            this.addLine(cell.lines[l]);
+                        }
                     }
                     board[q][r] = cell;
 
-                    //  need to manually break this loop on the middle row
+                    //  need to manually break this loop on the middle row (j = s = 0)
                     if(s === 0) {
                         break;
                     }
@@ -367,6 +383,22 @@ class SlitherLinkGame {
         }
         this.board = board;
     }
+    addCell(cell: Cell): void {
+        if(!this.cells.includes(cell)) {
+            this.cells.push(cell);
+        }
+    }
+    addLine(line: Line): void {
+        if(!this.lines.includes(line)) {
+            this.lines.push(line);
+        }
+    }
+    addNode(node: SLNode): void {
+        if(!this.nodes.includes(node)) {
+            this.nodes.push(node);
+        }
+    }
+
     handleMouseMove(ev: MouseEvent): void {
 
         //  ts type narrowing to use offsetTop/Left properties
@@ -386,10 +418,8 @@ class SlitherLinkGame {
         //  over so many cells each time mousemove fires (which can easily
         //  happen dozens of times per second)
         this.ctx.translate(400, 300);
-        for(let row of this.rows) {
-            for(let cell of row) {
-                cell.mouse = this.ctx.isPointInPath(cell.getPath(), x, y);
-            }
+        for(let i = 0; i < this.cells.length; i++) {
+                this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
         }
         this.ctx.resetTransform();
 
@@ -427,6 +457,9 @@ class SlitherLinkGame {
         ctx.resetTransform();
         ctx.translate(x0, y0);
 
+        //  shift the context to center the hex grid
+        ctx.translate(-(this.size * Cell.DX * 2) / 2, 0);
+
         //  set line style for drawing cell outlines
         ctx.strokeStyle = CSSColor.black;
         ctx.lineWidth = 1;
@@ -437,32 +470,28 @@ class SlitherLinkGame {
         ctx.textBaseline = 'middle';
         ctx.fillStyle = CSSColor.black;
 
-        const size: number = this.rows.length;
-
         //  pass the drawing context to each cell to draw their outlines and
         //  counts
         //  identify the cell beneath the mouse
-        let hover: Cell | null = null;
-        for(let i = 0; i < size; ++i) {
-            for(let j = 0; j < this.rows[i].length; ++j) {
-                this.rows[i][j].draw(ctx);
-                if(this.rows[i][j].mouse) {
-                    hover = this.rows[i][j];
-                }
-            }
+        // let hover: Cell | null = null;
+        for(let i = 0; i < this.cells.length; ++i) {
+            this.cells[i].draw(ctx);
+            // if(this.cells[i].mouse) {
+            //     hover = this.cells[i];
+            // }
         }
 
         //  highlight the neighbors of the highlighted cell
-        if(hover !== null) {
-            ctx.save();
-
-            //  highlight neighbors
-            ctx.fillStyle = CSSColor.lightgreen;
-            for(let i = 0; i < 6; ++i) {
-                hover.getNeighbor(hover.lines[i])?.draw(ctx, i.toString());
-            }
-            ctx.restore();
-        }
+        // if(hover !== null) {
+        //     ctx.save();
+        //
+        //     //  highlight neighbors
+        //     ctx.fillStyle = CSSColor.lightgreen;
+        //     for(let i = 0; i < 6; ++i) {
+        //         hover.getNeighbor(hover.lines[i])?.draw(ctx, i.toString());
+        //     }
+        //     ctx.restore();
+        // }
 
         //  reset the transform
         ctx.resetTransform();
@@ -504,31 +533,13 @@ class SlitherLinkGame {
      */
     setState(state: bigint, lines?: Line[]): void {
         if(lines === undefined) {
-            lines = this.getAllLines();
+            lines = this.lines;
         }
 
         //  set each line's state based on
-        lines.forEach((line, ind) => {
-            line.state = (state & BigInt(Math.pow(2, ind))) ? LineState.LINE : LineState.INDET;
-        });
-    }
-
-    getAllLines(): Line[] {
-        let lines: Line[] = [];
-
-        //  may need to adjust the order in which lines are added to the array
-        //  positions must align with respective bits in a 'state' BigInt
-        for(let row of this.rows) {
-            for(let cell of row) {
-                for(let line of cell.lines) {
-                    if(lines.indexOf(line) < 0) {
-                        lines.push(line);
-                    }
-                }
-            }
+        for(let i = 0; i < lines.length; i++) {
+            lines[i].state = (state & BigInt(Math.pow(2, i))) ? LineState.LINE : LineState.INDET;
         }
-
-        return lines;
     }
 }
 

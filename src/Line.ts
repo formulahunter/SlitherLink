@@ -10,6 +10,7 @@ enum LineState {
 }
 class Line {
     nodes: [SLNode, SLNode];
+    ownNodes: [SLNode | null, SLNode | null] = [null, null];
 
     /** Cell references are designated 'inside' and 'outside' using a right-hand
      *  convention. The 'inside' cell is on the inside of a path followed when
@@ -24,8 +25,26 @@ class Line {
     cells: Cell[] = [];
     state: LineState = LineState.INDET;
 
-    constructor(start: SLNode, end: SLNode) {
-        this.nodes = [start, end];
+    constructor(start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
+        let startNode: SLNode;
+        let endNode: SLNode;
+        if(start instanceof SLNode) {
+            startNode = start;
+        }
+        else {
+            startNode = new SLNode(...start);
+            this.ownNodes[0] = startNode;
+        }
+        if(end instanceof SLNode) {
+            endNode = end;
+        }
+        else {
+            endNode = new SLNode(...end);
+            this.ownNodes[1] = endNode;
+        }
+        this.nodes = [startNode, endNode];
+        this.nodes[0].addLine(this);
+        this.nodes[1].addLine(this);
     }
 
     draw(ctx: CanvasRenderingContext2D): void {
