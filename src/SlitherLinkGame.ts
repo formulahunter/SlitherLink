@@ -187,10 +187,19 @@ class SlitherLinkGame {
             //  verify that exactly two filled lines meet at the current node
             let ind = currentNode.lines.indexOf(currentLine);
             const [left, right] = [currentNode.lines[(ind + 1) % 3], currentNode.lines[(ind + 2) % 3]];
+            //  if either line is undefined (e.g. along the perimeter), only check the one that is defined
+            //  if not filled, the path ends => win condition fails
+            if(!left || !right) {
+                const next = left ? left : right;
+                if(next.state !== LineState.LINE) {
+                    return false;
+                }
+                currentLine = next;
+            }
             //  if both opposing lines have the same state, win condition fails regardless of what that state is
             //  else if exactly one opposing line has state LINE, it is the next line in the path
             //  else the path ends -> win condition fails
-            if(left.state === right.state) {
+            else if(left.state === right.state) {
                 return false;
             }
             else if(left.state === LineState.LINE) {
