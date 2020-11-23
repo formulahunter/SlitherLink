@@ -12,12 +12,12 @@ class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
     //  a board 3 cells wide has 30 lines
-    static numStates: bigint = BigInt(0);
+    static numStates: bigint = 0n;
 
     //  compute 256 states per frame b/c the frame rate is fast enough that
     //  they're barely visible anyway
     static statesPerFrame: number = Math.pow(2, 8);
-    static initialState: bigint = BigInt(302492928);
+    static initialState: bigint = 302492928n;
     static startTime: DOMHighResTimeStamp;
     static stateProgress: number = 0;
 
@@ -447,10 +447,10 @@ class SlitherLinkGame {
             window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
             SlitherLinkGame.frameRequest = 0;
 
-            let progress: number = Number(BigInt(1000) * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
+            let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
             let percent = `${(Number(progress) / 10).toFixed(2)}%`;
-            this.logProgress(SlitherLinkGame.resumeState - BigInt(1));
-            this.logCurrentRun(SlitherLinkGame.resumeState - BigInt(1));
+            this.logProgress(SlitherLinkGame.resumeState - 1n);
+            this.logCurrentRun(SlitherLinkGame.resumeState - 1n);
             console.log(`paused: next state to compute is ${SlitherLinkGame.resumeState} (${percent})`);
         }
         else {
@@ -511,7 +511,7 @@ class SlitherLinkGame {
 
     /** log big-picture progress */
     async logProgress(currentState: bigint): Promise<void> {
-        SlitherLinkGame.stateProgress = Number(BigInt(1000) * currentState / SlitherLinkGame.numStates);
+        SlitherLinkGame.stateProgress = Number(1000n * currentState / SlitherLinkGame.numStates);
 
         //  POST current state to server
         const req = fetch('/progress', {
