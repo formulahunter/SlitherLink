@@ -5,6 +5,7 @@ import SLNode from './SLNode.js';
 import { cell_json, hex_dirs, make_stem_cell } from './types.js';
 
 //  local constants for convenience
+//@ts-ignore: TS6133: 'up_op' is declared but its value is never read.
 const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
 class SlitherLinkGame {
@@ -251,6 +252,7 @@ class SlitherLinkGame {
             ];
         }
         //  get raw tree coordinates (stem, branch) from axial coordinates
+        //@ts-ignore: TS6133: 'axial_to_tree' is declared but its value is never read.
         function axial_to_tree(q: number, r: number) {
             const ind = q < r ? 0 : 1;
             const a = [q, r];
@@ -369,7 +371,7 @@ class SlitherLinkGame {
                         lineRefs[3] = dl.lines[0];
                     }
 
-                    const cell = new Cell(x0, y0, lineRefs, nodeRefs, json);
+                    const cell = new Cell(x0, y0, json, lineRefs, nodeRefs);
                     this.addCell(cell);
                     for(let n = 0; n < cell.nodes.length; n++) {
                         if(nodeRefs[n] === null) {
@@ -546,7 +548,7 @@ class SlitherLinkGame {
             lines = this.lines;
         }
 
-        //  set each line's state based on
+        //  set each line's state based on corresponding bit in 'state'
         for(let i = 0; i < lines.length; i++) {
             lines[i].state = (state & BigInt(Math.pow(2, i))) ? LineState.LINE : LineState.INDET;
         }

@@ -52,7 +52,7 @@ class Cell {
     mouse: boolean = false;
     private _path: Path2D | null = null;
 
-    constructor(x: number, y: number, lineRefs: (Line | null)[], nodeRefs: (SLNode | null)[], json: cell_json) {
+    constructor(x: number, y: number, json: cell_json, lineRefs: (Line | null)[], nodeRefs: (SLNode | null)[]) {
 
         this.json = json;
         this.x = x;
@@ -64,12 +64,18 @@ class Cell {
                 this.lines[i] = line;
             }
             else {
+                const jLine = json.lines[i];
+                if(jLine === null) {
+                    console.error(`expected cell_json %o to have line at position ${i} but found 'null'`, json);
+                    throw new TypeError('null line_json');
+                }
+
                 const i_2 = (i + 1) % 6;
                 const [start, end]: [SLNode | [number, number], SLNode | [number, number]] = [
                     nodeRefs[i] || [x + Cell.nodeOffsets[i][0], y + Cell.nodeOffsets[i][1]],
                     nodeRefs[i_2] || [x + Cell.nodeOffsets[i_2][0], y + Cell.nodeOffsets[i_2][1]]
                 ];
-                this.lines[i] = new Line(start, end);
+                this.lines[i] = new Line(jLine, start, end);
                 this.ownLines[i] = this.lines[i];
 
                 //  add nodes to lineRefs (where newly constructed by Line()) for reference in subsequent iterations
