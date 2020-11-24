@@ -127,6 +127,9 @@ class SlitherLinkGame {
 
         for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
 
+            //  increment currentState
+            currentState++;
+
             this.setState(currentState, lines);
             if(this.checkWin()) {
                 SlitherLinkGame.validLoopStates.push(currentState);
@@ -134,7 +137,13 @@ class SlitherLinkGame {
                 //     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
             }
 
-            currentState++;
+            if(currentState === SlitherLinkGame.numStates) {
+                SlitherLinkGame.resumeState = currentState - 1n;    //  subtract 1 so sim doesn't increment beyond numStates on next load
+                this.logProgress(currentState);
+                console.warn('all states checked');
+                this.draw(400, 300);
+                return;
+            }
         }
         //  update the live progress locally and on the server
         SlitherLinkGame.resumeState = currentState;
@@ -449,8 +458,8 @@ class SlitherLinkGame {
 
             let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
             let percent = `${(Number(progress) / 10).toFixed(2)}%`;
-            this.logProgress(SlitherLinkGame.resumeState - 1n);
-            this.logCurrentRun(SlitherLinkGame.resumeState - 1n);
+            this.logProgress(SlitherLinkGame.resumeState);
+            this.logCurrentRun(SlitherLinkGame.resumeState);
             console.log(`paused: next state to compute is ${SlitherLinkGame.resumeState} (${percent})`);
         }
         else {
