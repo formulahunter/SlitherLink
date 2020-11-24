@@ -12,7 +12,7 @@ class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
     //  a board 3 cells wide has 30 lines
-    static numStates: bigint = 0n;
+    static numStates: bigint = -1n;
 
     //  compute 256 states per frame b/c the frame rate is fast enough that
     //  they're barely visible anyway
@@ -26,7 +26,7 @@ class SlitherLinkGame {
     static frameRequest: number = 0;
 
     //  next state to calculate on resuming simulation
-    static resumeState: bigint = BigInt(-1);
+    static resumeState: bigint = -1n;
 
     //  server request on initial page load
     static progressRequest: Promise<Response> = fetch('/progress', {method: 'GET'});
@@ -41,23 +41,51 @@ class SlitherLinkGame {
     // private canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
 
-    //  size parameter (number of cells across long diagonal)
-    readonly size: number = -1;
+    //  size parameters
+    //  distance (in cell count) from center to corner cell
+    readonly radius: number = -1;
+    //  distance (in cell count) from corner to corner
+    readonly diameter: number = -1;
+    //  total number of cells
+    readonly cellCount: number = -1;
+    //  total number of lines
+    readonly lineCount: number = -1;
+    //  total number of nodes
+    readonly nodeCount: number = -1;
 
     //  container arrays
-    board: Cell[][] = [];
-    cells: Cell[] = [];
-    private readonly lines: Line[] = [];
-    private nodes: SLNode[] = [];
+    board: Cell[][];
+    cells: Cell[];
+    private readonly lines: Line[];
+    private nodes: SLNode[];
 
     /** construct SlitherLinkGame with a given board size
      *
-     * @param size - number of cells in the middle horizontal
+     * @param r - "radius" of the board as distance (in cell count) from center to corner
      * @param canvas - canvas element on which the game will be drawn
      */
-    constructor(size: number, canvas: HTMLCanvasElement) {
+    constructor(r: number, canvas: HTMLCanvasElement) {
 
-        this.size = size;
+        const _3r = 3 * r;
+        this.radius = r;
+        this.diameter = 2 * r;
+        this.cellCount = _3r * (r + 1) + 1;
+        this.lineCount = _3r * (_3r + 5) + 6;
+        this.nodeCount = 6 * r * (r + 2) + 6;
+
+        this.cells = new Array(this.cellCount);
+        this.lines = new Array(this.lineCount);
+        this.nodes = new Array(this.nodeCount);
+
+        //  populate a 2D array of cell references by axial coordinates
+        this.board = new Array(this.diameter + 1);
+        for(let q = 0; q < this.diameter + 1; q++) {
+            this.board[q] = [];
+        }
+
+        //  define a number whose 32 binary digits will be used to encode the
+        //  state of each line (30 lines total for span = 3)
+        SlitherLinkGame.numStates = 2n ** BigInt(this.lineCount);
 
         //  define event listeners on canvas element
         canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
@@ -70,20 +98,9 @@ class SlitherLinkGame {
         }
         this.ctx = ctx;
 
-        //  size must be odd
-        //  add 1 if even number given
-        if(size % 2 === 0) {
-            size += 1;
-        }
-
         //  the total number of rows will be equal to the given width of the
         //  middle row
-        this.generateRandom(size);
-        SlitherLinkGame.numStates = 2n ** BigInt(this.lines.length);
-
-        //  define a number whose 32 binary digits will be used to encode the
-        //  state of each line (30 lines total for size = 3)
-        SlitherLinkGame.numStates = BigInt(Math.pow(2, this.lines.length));
+        this.generateRandom(r);
 
         //  draw the initial board
         this.draw(400, 300);
@@ -254,7 +271,7 @@ class SlitherLinkGame {
         return true;
     }
 
-    private generateRandom(size: number) {
+    private generateRandom(radius: number) {
 
         //  get axial (q, r) coordinates from json tree coordinates (stem, branch)
         function tree_to_axial(i: number, j: number): [number, number] {
@@ -277,25 +294,22 @@ class SlitherLinkGame {
             ];
         }
 
-        //  populate a 2D array of cells references by axial coordinates
-        const board: Cell[][] = [];
-        for(let q = 0; q < size; q++) {
-            board[q] = [];
-        }
+        const span = this.diameter + 1;
+        const board = this.board;
 
         //  get neighbors of the cell at [q, r], arranged in order corresponding to shared line positions
         function get_neighbors_of(q: number, r: number): (Cell | null)[] {
             //  validate the given axial coordinates
-            if(q < 0 || q > size - 1) {
-                console.error(`q = ${q} is outside of valid range (0, ${size - 1})`);
+            if(q < 0 || q > span - 1) {
+                console.error(`q = ${q} is outside of valid range (0, ${span - 1})`);
                 throw new RangeError('out-of-range axial coordinate q');
             }
-            if(r < 0 || r > size - 1) {
-                console.error(`r = ${r} is outside of valid range (0, ${size - 1})`);
+            if(r < 0 || r > span - 1) {
+                console.error(`r = ${r} is outside of valid range (0, ${span - 1})`);
                 throw new RangeError('out-of-range axial coordinate r');
             }
-            if(Math.abs(r - q) > (size - 1) / 2) {
-                console.error(`[q, r] = [${q}, ${r}] fails limiting condition ==> abs(${r} - ${q}) > (${size} - 1) / 2`);
+            if(Math.abs(r - q) > radius) {
+                console.error(`[q, r] = [${q}, ${r}] fails limiting condition ==> abs(${r} - ${q}) > (${radius})`);
                 throw new RangeError('invalid axial coordinates q, r');
             }
             const v = Cell.vectors;
@@ -313,13 +327,13 @@ class SlitherLinkGame {
         }
 
         //  get a raw structure of (mostly) unlinked lines/cells
-        const root: cell_json = make_stem_cell(size);
+        const root: cell_json = make_stem_cell(span);
 
         //  get the raw cell at grid position [i, j]
         //  i gives the stem position, j gives the branch position (both are zero-indexed)
         function get_cell_json_at(i: number, j: number): cell_json {
-            if((i + j) >= size || j > (size - 1) / 2) {
-                throw new Error(`invalid tree position [${i}, ${j}] for grid of size ${size}`);
+            if((i + j) >= span || j > (span - 1) / 2) {
+                throw new Error(`invalid tree position [${i}, ${j}] for grid of span ${span}`);
             }
             let cell: cell_json = root;
             while(i > 0) {
@@ -348,10 +362,11 @@ class SlitherLinkGame {
         const dx = Cell.DX * 2;
         const dy = Cell.DY * 3;
         const sides = [0, -1, 1];
-        for(let i = 0; i < size; i++) {
+        let [cellInd, lineInd, nodeInd] = [0, 0, 0];
+        for(let i = 0; i < span; i++) {
             //  create the stem cell (j = 0), then the lower branch (j < 0), then the upper branch (j > 0)
             for(let s = 0; s < sides.length; s++) {
-                for(let j = sides[s]; Math.abs(j) < (size + 1) / 2 && Math.abs(j) + i < size; j += sides[s]) {
+                for(let j = sides[s]; Math.abs(j) < (span + 1) / 2 && Math.abs(j) + i < span; j += sides[s]) {
                     const [q, r] = tree_to_axial(i, j);
                     const json = get_cell_json_at(i, j);
                     //  x, y relative to root cell
@@ -387,15 +402,15 @@ class SlitherLinkGame {
                     }
 
                     const cell = new Cell(x0, y0, json, lineRefs, nodeRefs);
-                    this.addCell(cell);
+                    this.addCell(cell, cellInd++);
                     for(let n = 0; n < cell.nodes.length; n++) {
                         if(nodeRefs[n] === null) {
-                            this.addNode(cell.nodes[n]);
+                            this.addNode(cell.nodes[n], nodeInd++);
                         }
                     }
                     for(let l = 0; l < cell.lines.length; l++) {
                         if(lineRefs[l] === null) {
-                            this.addLine(cell.lines[l]);
+                            this.addLine(cell.lines[l], lineInd++);
                         }
                     }
                     board[q][r] = cell;
@@ -407,21 +422,20 @@ class SlitherLinkGame {
                 }
             }
         }
-        this.board = board;
     }
-    addCell(cell: Cell): void {
+    addCell(cell: Cell, i: number): void {
         if(!this.cells.includes(cell)) {
-            this.cells.push(cell);
+            this.cells[i] = cell;
         }
     }
-    addLine(line: Line): void {
+    addLine(line: Line, i: number): void {
         if(!this.lines.includes(line)) {
-            this.lines.push(line);
+            this.lines[i] = line;
         }
     }
-    addNode(node: SLNode): void {
+    addNode(node: SLNode, i: number): void {
         if(!this.nodes.includes(node)) {
-            this.nodes.push(node);
+            this.nodes[i] = node;
         }
     }
 
@@ -444,7 +458,7 @@ class SlitherLinkGame {
         //  over so many cells each time mousemove fires (which can easily
         //  happen dozens of times per second)
         this.ctx.translate(400, 300);
-        this.ctx.translate(-(this.size * Cell.DX * 2) / 2, 0);
+        this.ctx.translate(-this.radius * Cell.DX * 2, 0);
         for(let i = 0; i < this.cells.length; i++) {
             this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
         }
@@ -514,7 +528,7 @@ class SlitherLinkGame {
         ctx.translate(x0, y0);
 
         //  shift the context to center the hex grid
-        ctx.translate(-(this.size * Cell.DX * 2) / 2, 0);
+        ctx.translate(-this.radius * Cell.DX * 2, 0);
 
         //  set line style for drawing cell outlines
         ctx.strokeStyle = CSSColor.black;
