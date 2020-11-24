@@ -22,8 +22,16 @@ class SlitherLinkGame {
     static stateProgress: number = 0;
 
     //  frame request id returned by requestAnimationFrame()
-    //  used to pause/resume simulation
+    //  used to schedule animation frames
     static frameRequest: number = 0;
+
+    //  timeout id returned by setTimeout
+    //  used to pause/resume simulation
+    simTimeout: number = 0;
+
+    //  records used for measuring performance of each sim sprint
+    startTime: number = -1;
+    startState: bigint = -1n;
 
     //  next state to calculate on resuming simulation
     static resumeState: bigint = -1n;
@@ -131,23 +139,28 @@ class SlitherLinkGame {
         SlitherLinkGame.stateProgress = Number(1000n * (SlitherLinkGame.initialState + 1n) / SlitherLinkGame.numStates);
 
         const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
-        console.log(`starting simulation with state ${(SlitherLinkGame.initialState)}\n${percent}% %cof ${SlitherLinkGame.numStates})`, 'color: #888888');
+        console.log(`starting simulation with state ${(SlitherLinkGame.initialState)}\n${percent}% %cof ${SlitherLinkGame.numStates}`, 'color: #888888');
         console.info('%csimulation will not stop itself\n%cclick on the canvas to pause/resume', 'color: #e0e0a0; background-color: #606040;', 'color: #888888; background-color: unset;');
 
-        SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState));
+        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState), 0);
     }
     /** animate frames by setting each line state to the corresponding bit in
      *  'currentState'
      * @param lines
      * @param currentState
-     * @param currentTime
      */
-    private drawComboFrame(lines: Line[], currentState: bigint, currentTime: DOMHighResTimeStamp) {
+    private drawComboFrame(lines: Line[], currentState: bigint) {
 
-        //  un-set the frame request in case this method does not run to completion (where a new request ID will be assigned)
-        SlitherLinkGame.frameRequest = 0;
+        //  un-set the timeout id in case this method does not run to completion (where a new ID will be assigned)
+        this.simTimeout = 0;
 
-        for(let i = 0; i < SlitherLinkGame.statesPerFrame; ++i) {
+        if(this.startTime < 0) {
+            this.startTime = performance.now();
+            this.startState = currentState;
+        }
+
+        const yieldSchedule = performance.now() + 50;
+        while(performance.now() < yieldSchedule) {
 
             if(currentState === SlitherLinkGame.numStates - 1n) {
                 SlitherLinkGame.resumeState = currentState;
@@ -168,18 +181,28 @@ class SlitherLinkGame {
                 //     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
             }
         }
+
         //  update the live progress locally and on the server
         SlitherLinkGame.resumeState = currentState;
+
+        //  log progress/performance
+        const currentTime = performance.now();
         if(currentTime > SlitherLinkGame.nextLog) {
             this.logProgress(currentState, currentTime);
-            this.logCurrentRun(currentState, currentTime);
+            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000);
+            this.startTime = -1;
+            this.startState = -1n;
             this.saveProgress(currentState);
         }
 
-        this.draw(400, 300);
+        //  if the most recent frame has been drawn to the canvas, request the next frame
+        if(!SlitherLinkGame.frameRequest) {
+            SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.draw.bind(this, 400, 300));
+        }
 
-        //  assign the new request id to be used to pause simulation in a canvas 'click' event
-        SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.drawComboFrame.bind(this, lines, currentState));
+        //  schedule another run on the window's execution queue
+        //  if a 'click' event is pending/queued, this will be cleared before it is invoked
+        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, currentState));
     }
 
     /** check if the current game state is a valid solution
@@ -488,7 +511,7 @@ class SlitherLinkGame {
     }
     //  pause the simulation if it is currently running, otherwise resume it
     toggleSimulation(): void {
-        if(SlitherLinkGame.frameRequest) {
+        if(this.simTimeout) {
             this.pauseSimulation();
         }
         else {
@@ -497,12 +520,13 @@ class SlitherLinkGame {
     }
     //  pause the simulation if it is currently running
     pauseSimulation(): void {
-        if(!SlitherLinkGame.frameRequest) {
+        if(!SlitherLinkGame.frameRequest && !this.simTimeout) {
             return;
         }
 
-        window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
+        window.clearTimeout(this.simTimeout);
         SlitherLinkGame.frameRequest = 0;
+        this.simTimeout = 0;
         let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
         let percent = `${(Number(progress) / 10).toFixed(2)}%`;
         console.log(`paused after ${SlitherLinkGame.resumeState} states (${percent})`);
@@ -517,6 +541,8 @@ class SlitherLinkGame {
     }
 
     draw(x0: number, y0: number): void {
+
+        SlitherLinkGame.frameRequest = 0;
 
         //  declare a local variable for the drawing context since its used
         //  so often
@@ -576,11 +602,9 @@ class SlitherLinkGame {
         SlitherLinkGame.nextLog = currentTime + SlitherLinkGame.logPeriod;
     }
     /** log stats of current simulation run (since started/resumed) */
-    logCurrentRun(statesChecked: bigint, currentTime: DOMHighResTimeStamp = performance.now()): void {
-        const elapsedTime: number = (currentTime - SlitherLinkGame.startTime) / 1000;
-        const elapsedStates: bigint = statesChecked - SlitherLinkGame.initialState;
+    logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000): void {
         const avg = Number(elapsedStates) / elapsedTime;   //  convert ms to seconds (cast BigInts back to Numbers to preserve sigfigs that would otherwise be lost to rounding)
-        console.info(`current run: ${avg.toFixed(1)} states/s\n%c${elapsedStates} states in ${elapsedTime.toFixed(3)}s`, 'color: #888888;');
+        console.info(`current run: ${avg.toFixed(1)} states/s\n%c${elapsedStates} states in ${(elapsedTime).toFixed(3)}s`, 'color: #888888;');
     }
     /** save current progress to server */
     async saveProgress(currentState: bigint = SlitherLinkGame.resumeState): Promise<boolean> {
