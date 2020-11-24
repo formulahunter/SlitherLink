@@ -33,7 +33,7 @@ class SlitherLinkGame {
 
     //  periodic logging parameters
     static logPeriod: number = 60 * 1000;   //  milliseconds between log messages
-    static lastLog: DOMHighResTimeStamp = 0;
+    static nextLog: DOMHighResTimeStamp = 0;
 
     //  states with at least 1 valid loop
     static validLoopStates: bigint[] = [];
@@ -147,10 +147,9 @@ class SlitherLinkGame {
         }
         //  update the live progress locally and on the server
         SlitherLinkGame.resumeState = currentState;
-        if(currentTime > SlitherLinkGame.lastLog + SlitherLinkGame.logPeriod) {
-            this.logProgress(currentState);
+        if(currentTime > SlitherLinkGame.nextLog) {
+            this.logProgress(currentState, currentTime);
             this.logCurrentRun(currentState, currentTime);
-            SlitherLinkGame.lastLog = currentTime;
         }
 
         this.draw(400, 300);
@@ -450,22 +449,30 @@ class SlitherLinkGame {
         //  entire canvas)
         this.draw(400, 300);
     }
-    handleClick(_ev: MouseEvent): void {
+    handleClick(ev: MouseEvent): void {
         //  pause the simulation if it is currently running, otherwise resume it
         if(SlitherLinkGame.frameRequest) {
-            window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
-            SlitherLinkGame.frameRequest = 0;
-
-            let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
-            let percent = `${(Number(progress) / 10).toFixed(2)}%`;
+            //  log current progress
             this.logProgress(SlitherLinkGame.resumeState);
             this.logCurrentRun(SlitherLinkGame.resumeState);
+
+            //  alt+click => log progress but don't pause the sim
+            if(ev.altKey) {
+                return;
+            }
+
+            window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
+
+            SlitherLinkGame.frameRequest = 0;
+            let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
+            let percent = `${(Number(progress) / 10).toFixed(2)}%`;
             console.log(`paused: next state to compute is ${SlitherLinkGame.resumeState} (${percent})`);
         }
         else {
             this.combinate();
         }
     }
+
 
     draw(x0: number, y0: number): void {
 
@@ -519,7 +526,7 @@ class SlitherLinkGame {
     }
 
     /** log big-picture progress */
-    async logProgress(currentState: bigint): Promise<void> {
+    async logProgress(currentState: bigint, currentTime: DOMHighResTimeStamp = performance.now()): Promise<void> {
         SlitherLinkGame.stateProgress = Number(1000n * currentState / SlitherLinkGame.numStates);
 
         //  POST current state to server
@@ -533,6 +540,7 @@ class SlitherLinkGame {
         });
         const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
         console.log(`${currentState} of ${SlitherLinkGame.numStates} states checked (${percent}%)`);
+        SlitherLinkGame.nextLog = currentTime + SlitherLinkGame.logPeriod;
 
         const res = await req;
         if(res.status !== 200) {
