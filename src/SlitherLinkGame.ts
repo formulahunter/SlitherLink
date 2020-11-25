@@ -59,7 +59,7 @@ class SlitherLinkGame {
         this.size = size;
 
         //  define event listeners on canvas element
-        // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
 
         // this.canvas = canvas;
@@ -187,10 +187,19 @@ class SlitherLinkGame {
             //  verify that exactly two filled lines meet at the current node
             let ind = currentNode.lines.indexOf(currentLine);
             const [left, right] = [currentNode.lines[(ind + 1) % 3], currentNode.lines[(ind + 2) % 3]];
+            //  if either line is undefined (e.g. along the perimeter), only check the one that is defined
+            //  if not filled, the path ends => win condition fails
+            if(!left || !right) {
+                const next = left ? left : right;
+                if(next.state !== LineState.LINE) {
+                    return false;
+                }
+                currentLine = next;
+            }
             //  if both opposing lines have the same state, win condition fails regardless of what that state is
             //  else if exactly one opposing line has state LINE, it is the next line in the path
             //  else the path ends -> win condition fails
-            if(left.state === right.state) {
+            else if(left.state === right.state) {
                 return false;
             }
             else if(left.state === LineState.LINE) {
@@ -418,8 +427,9 @@ class SlitherLinkGame {
         //  over so many cells each time mousemove fires (which can easily
         //  happen dozens of times per second)
         this.ctx.translate(400, 300);
+        this.ctx.translate(-(this.size * Cell.DX * 2) / 2, 0);
         for(let i = 0; i < this.cells.length; i++) {
-                this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
+            this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
         }
         this.ctx.resetTransform();
 
