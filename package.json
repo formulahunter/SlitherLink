@@ -15,9 +15,11 @@
   "scripts": {
     "devstart": "nodemon -V lib/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "tsc ; node ./increment-build.js",
     "lint": "tslint -c tslint.json src/**/*.ts",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "resetBuildNum": "node ./reset-build.js",
+    "switch": "node ./update-head.js"
   },
   "author": "",
   "license": "ISC",
@@ -27,6 +29,7 @@
   ],
   "typings": "./lib/index.d.ts",
   "devDependencies": {
-    "nodemon": "^2.0.6"
+    "nodemon": "^2.0.6",
+    "replace-in-file": "^6.1.0"
   }
 }
