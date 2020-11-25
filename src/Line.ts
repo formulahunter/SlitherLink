@@ -1,6 +1,7 @@
 import Cell from './Cell.js';
 import SLNode from './SLNode.js';
 import CSSColor from './CSSColor.js';
+import { line_json } from './types.js';
 
 
 enum LineState {
@@ -9,6 +10,7 @@ enum LineState {
     LINE  = 0b100
 }
 class Line {
+    readonly json: line_json
     nodes: [SLNode, SLNode];
     ownNodes: [SLNode | null, SLNode | null] = [null, null];
 
@@ -23,9 +25,10 @@ class Line {
      *  because it points right for the other; see explanation of "sides" above)
      */
     cells: Cell[] = [];
-    state: LineState = LineState.INDET;
 
-    constructor(start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
+    constructor(json: line_json, start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
+        this.json = json;
+
         let startNode: SLNode;
         let endNode: SLNode;
         if(start instanceof SLNode) {
@@ -63,6 +66,13 @@ class Line {
         ctx.stroke();
 
         ctx.restore();
+    }
+
+    get state(): LineState {
+        return this.json.state;
+    }
+    set state(state: LineState) {
+        this.json.state = state;
     }
 
     get proven(): number {
