@@ -8,6 +8,34 @@ import { cell_json, hex_dirs, make_stem_cell } from './types.js';
 //@ts-ignore: TS6133: 'up_op' is declared but its value is never read.
 const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
+//  get an integer whose binary form indicates the bits that changed when the argument was incremented to its
+//  current value
+function getBitsChanged(s: bigint): bigint {
+    //  previous value of s
+    const s_1 = s - 1n;
+    //  true for each bit that changed from 0 -> 1 or 1 -> 0; this will include the highest-order changed bit
+    //  and, incidentally, every lower-order bit
+    return ~( (s & s_1) | ~(s | s_1) );
+}
+//  get the index of the highest-order line whose state will be changed next time 'currentState' is incremented
+const shift: bigint = 1n;
+//  get the base-2 magnitude (effectively the position of the highest-order bit) of the change when 'state'
+//  was incremented from its previous values
+function getChangeMagnitudeBase2(state: bigint): number {
+    let magnitude: bigint = getBitsChanged(state);
+    let i = -1;
+    while(magnitude) {
+        magnitude >>= shift;
+        i++;
+    }
+    return i;
+}
+//  return 1 if the given line is filled in 'state', otherwise return 0
+function getLineState(lineIndex: number, state: bigint): (1 | 0) {
+    return state & 1n << BigInt(lineIndex) ? 1 : 0;
+}
+
+let invalidCount: number = -1;
 class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
@@ -159,6 +187,13 @@ class SlitherLinkGame {
             this.startState = currentState;
         }
 
+        const s: LineState[] = lines.map(line => line.state);
+        const l: number[][] = lines.map((line) =>  line.nodes.map(node => this.nodes.indexOf(node)));
+        const n: number[][] = this.nodes.map(node => node.lines.map(line => lines.indexOf(line)));
+
+        //  index of current node to check
+        let i: number = -1;
+
         const yieldSchedule = performance.now() + 50;
         while(performance.now() < yieldSchedule) {
 
@@ -171,16 +206,119 @@ class SlitherLinkGame {
                 return;
             }
 
+            //  check states until a valid one is found
+            let valid = false;
+            while(!valid) {
+                i++;
+                //  the 'j' loop runs twice, once for each node
+                for(let j = 0; j < 1; j++) {
+                    //  each node has two or three lines - get their states in a convenient array
+                    const states = [];
+                    let current = -1;
+                    for(let k = 0; k < n[l[i][j]].length; k++) {
+                        states[k] = s[n[l[i][j]][k]];
+                        if(n[l[i][j]] === l[i]) {
+                            current = k;
+                        }
+                    }
+                    //  validity rules depend on whether the node has two or three lines
+                    //  states are 0 or 1 ==> (1 - s) is the same as !s
+                    if(states.length === 2) {
+                        //  a node with two lines is valid only if both lines have the same state
+                        valid = (1 - states[current]) === states[1 - current];  //  the state being evaluated is the opposite of line[i]'s current state ==> (1 - states[current])
+                    }
+                    else if(states.length === 3) {
+                        valid = !states[current] !== (states[(current + 1) % 3] !== states[(current + 2) % 3]);  //  the state being evaluated is the opposite of line[i]'s current state ==> !states[current]
+                    }
+                }
+            }
+
             //  increment currentState
             currentState++;
 
-            this.setState(currentState, lines);
+            /* This method automatically detects an "invalid" state (e.g., 3 lines meeting at a single point) and
+             * increments 'state' to skip it entirely. It does so by checking the state of all lines at a node before
+             * setting the current line and, if an invalid state is indicated, it increments the lowest-order line's bit
+             * by 1 (because no combination of any lower-order lines' states will reconcile the the current line and its
+             * higher-order neighbors at the invalid node) and sets all lower-order bits(if any) to zero
+             */
+            //  get the highest-order line that will be changed if 'currentState' is applied below  (though bear in mind
+            //  that it has not yet been applied, so 'nextLine's tentative state is the opposite of its current state)
+            const nextInd = getChangeMagnitudeBase2(currentState);
+            const nextLine = lines[nextInd];
+
+            //  check both of nextLine's nodes
+            for(let j = 0; j < 2; j++) {
+                const node = nextLine.nodes[j];
+                const nodeInd = node.lines.indexOf(nextLine);
+
+                //  get the index in lines[] of each neighbor at 'node'
+                const neighbors: Line[] = [];
+                for(let k = 1; k <= 2; k++) {
+                    const l = node.lines[(nodeInd + k) % 3];
+                    if(l) {
+                        neighbors.push(l);
+                    }
+                }
+
+                //  if node has only one line opposing nextLine, that line's current state must match the state nextLine
+                //  is about to be assigned
+                let lowestInd: number;
+                if(neighbors.length === 1) {
+                    //  'currentState' is valid if and only if both lines will have the same state
+                    //  continue to next iteration of inner loop
+                    if((1 - nextLine.state) === getLineState(neighbors[0], currentState)) {
+                        continue;
+                    }
+
+                    //  this will cause the outer loop to skip straight to the next iteration
+                    valid = false;
+
+                    //  increment the bit corresponding to the lower-order line of neighbors[0] and nextLine
+                    //  (but subtract 1 because currentState will be incremented again at the top of the next iteration
+                    //  of the outer loop)
+                    //  this step can be expensive and is entirely redundant if lowestInd is 0 (which is 1/2 the time)
+                    //  and serious overkill if lowestInd is 1 (which is 1/2 of the remaining 1/2)
+                    const lowestInd = Math.min(nextInd, lines.indexOf(neighbors[0]));
+                    const higherBits = lines.length - lowestInd;
+                    if(lowestInd > 1) {
+                        currentState = (currentState + (1n << BigInt(lowestInd)) - 1n) & (BigInt((2 ** higherBits) - 1) << BigInt(lowestInd));
+                    }
+                    else if(lowestInd === 1) {
+                        currentState++;
+                    }
+                }
+                else {
+                    //  if node has two lines opposing nextLine, and
+                    //  * both have the same state, then the node is invalid if nextLine is to be filled
+                    //  * both have opposite stated, then the node is invalid if nextLine is to be empty
+                    valid = !nextLine.state !== (neighbors[0].state !== neighbors[1].state);
+
+                    //  set lowestInd
+                }
+
+                //  if either node is invalid, skip straight to the next state
+                if(!valid) {
+                    //  use lowestInd to right-shift current state, increment by 1, then left-shift
+                    break;
+                }
+            }
+
+            //  only checkWin() if the inner loop found 'currentState' to be valid
+            if(!valid) {
+                invalidCount++;
+                continue;
+            }
+
             if(this.checkWin()) {
                 SlitherLinkGame.validLoopStates.push(currentState);
                 // console.info(`new win state: ${currentState}\n`
                 //     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
             }
         }
+
+        //  state must be set to change what gets animated by draw()
+        this.setState(currentState, lines);
 
         //  update the live progress locally and on the server
         SlitherLinkGame.resumeState = currentState;
@@ -189,9 +327,10 @@ class SlitherLinkGame {
         const currentTime = performance.now();
         if(currentTime > SlitherLinkGame.nextLog) {
             this.logProgress(currentState, currentTime);
-            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000);
+            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000, invalidCount || undefined);
             this.startTime = -1;
             this.startState = -1n;
+            invalidCount = 0;
             this.saveProgress(currentState);
         }
 
@@ -520,12 +659,11 @@ class SlitherLinkGame {
     }
     //  pause the simulation if it is currently running
     pauseSimulation(): void {
-        if(!SlitherLinkGame.frameRequest && !this.simTimeout) {
+        if(!this.simTimeout) {
             return;
         }
 
         window.clearTimeout(this.simTimeout);
-        SlitherLinkGame.frameRequest = 0;
         this.simTimeout = 0;
         let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
         let percent = `${(Number(progress) / 10).toFixed(2)}%`;
@@ -534,7 +672,7 @@ class SlitherLinkGame {
     }
     //  start/resume the simulation if it is currently paused
     resumeSimulation(): void {
-        if(SlitherLinkGame.frameRequest) {
+        if(this.simTimeout) {
             return;
         }
         this.combinate();
@@ -602,9 +740,12 @@ class SlitherLinkGame {
         SlitherLinkGame.nextLog = currentTime + SlitherLinkGame.logPeriod;
     }
     /** log stats of current simulation run (since started/resumed) */
-    logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000): void {
+    logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000, invalids?: number): void {
         const avg = Number(elapsedStates) / elapsedTime;   //  convert ms to seconds (cast BigInts back to Numbers to preserve sigfigs that would otherwise be lost to rounding)
         console.info(`current run: ${avg.toFixed(1)} states/s\n%c${elapsedStates} states in ${(elapsedTime).toFixed(3)}s`, 'color: #888888;');
+        if(invalids !== undefined) {
+            console.debug(`%cskipped checking ${invalids} invalid states`, 'color: #888888');
+        }
     }
     /** save current progress to server */
     async saveProgress(currentState: bigint = SlitherLinkGame.resumeState): Promise<boolean> {
@@ -646,8 +787,10 @@ class SlitherLinkGame {
         }
 
         //  set each line's state based on corresponding bit in 'state'
+        let lineMask = 1n;
         for(let i = 0; i < lines.length; i++) {
-            lines[i].state = (state & BigInt(Math.pow(2, i))) ? LineState.LINE : LineState.INDET;
+            lines[i].state = (state & lineMask) ? LineState.LINE : LineState.INDET;
+            lineMask <<= 1n;
         }
     }
 }
