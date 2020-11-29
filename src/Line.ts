@@ -5,9 +5,9 @@ import { line_json } from './types.js';
 
 
 enum LineState {
-    INDET = 0b001,
+    INDET = 0b000,
     BLANK = 0b010,
-    LINE  = 0b100
+    LINE  = 0b001
 }
 class Line {
     readonly json: line_json
@@ -53,12 +53,12 @@ class Line {
     draw(ctx: CanvasRenderingContext2D): void {
 
         ctx.save();
-        if(this.proven) {
-            ctx.strokeStyle = CSSColor.black;
-        }
-        else {
-            ctx.strokeStyle = CSSColor.lightgray;
-        }
+        // if(this.proven) {
+        //     ctx.strokeStyle = CSSColor.black;
+        // }
+        // else {
+        //     ctx.strokeStyle = CSSColor.lightgray;
+        // }
 
         ctx.beginPath();
         ctx.moveTo(this.start.x, this.start.y);

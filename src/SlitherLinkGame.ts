@@ -8,6 +8,34 @@ import { cell_json, hex_dirs, make_stem_cell } from './types.js';
 //@ts-ignore: TS6133: 'up_op' is declared but its value is never read.
 const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
+//  get an integer whose binary form indicates the bits that changed when the argument was incremented to its
+//  current value
+function getBitsChanged(s: bigint): bigint {
+    //  previous value of s
+    const s_1 = s - 1n;
+    //  true for each bit that changed from 0 -> 1 or 1 -> 0; this will include the highest-order changed bit
+    //  and, incidentally, every lower-order bit
+    return ~( (s & s_1) | ~(s | s_1) );
+}
+//  get the index of the highest-order line whose state will be changed next time 'currentState' is incremented
+const shift: bigint = 1n;
+//  get the base-2 magnitude (effectively the position of the highest-order bit) of the change when 'state'
+//  was incremented from its previous values
+function getChangeMagnitudeBase2(state: bigint): number {
+    let magnitude: bigint = getBitsChanged(state);
+    let i = -1;
+    while(magnitude) {
+        magnitude >>= shift;
+        i++;
+    }
+    return i;
+}
+//  return 1 if the given line is filled in 'state', otherwise return 0
+function getLineState(lineIndex: number, state: bigint): (1 | 0) {
+    return state & 1n << BigInt(lineIndex) ? 1 : 0;
+}
+
+let invalidCount: number = -1;
 class SlitherLinkGame {
 
     //  total number of possible states as 2 ^ (# of lines)
@@ -40,11 +68,11 @@ class SlitherLinkGame {
     static progressRequest: Promise<Response> = fetch('/progress', {method: 'GET'});
 
     //  periodic logging parameters
-    static logPeriod: number = 60 * 1000;   //  milliseconds between log messages
+    static logPeriod: number = 15 * 1000;   //  milliseconds between log messages
     static nextLog: DOMHighResTimeStamp = 0;
 
     //  states with at least 1 valid loop
-    static validLoopStates: bigint[] = [];
+    static validLoopStates: LineState[][] = [];
 
     // private canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
@@ -159,6 +187,13 @@ class SlitherLinkGame {
             this.startState = currentState;
         }
 
+        const s: LineState[] = lines.map(line => line.state);
+        const l: number[][] = lines.map(line => line.nodes.map(node => this.nodes.indexOf(node)));
+        const n: number[][] = this.nodes.map(node => node.lines.map(line => lines.indexOf(line)));
+        // console.debug(s);
+        // console.debug(l);
+        // console.debug(n);
+
         const yieldSchedule = performance.now() + 50;
         while(performance.now() < yieldSchedule) {
 
@@ -171,27 +206,163 @@ class SlitherLinkGame {
                 return;
             }
 
-            //  increment currentState
-            currentState++;
+            // //  check states until a valid one is found
+            // let v = false;
+            // while(!v) {
+            //
+            //     //  check every node on the board
+            //     let chk: number[] = [];
+            //     //  will il always be the lowest-index line...?
+            //     //  if so this can use a while loop and the index can be used in subsequent increment loops
+            //     for(let il = 0; il < l.length; il++) {
+            //         //  each line has two nodes
+            //         for(let inl = 0; inl < 2; inl++) {
+            //             //  but skip a node if it's already been checked
+            //             if(chk.includes(l[il][inl])) {
+            //                 continue;
+            //             }
+            //             //  get the node's lines and mark it so it won't be checked again
+            //             const nd = n[l[il][inl]];
+            //             chk.push(l[il][inl]);
+            //
+            //             //  check whether this node has a null line and, if so, which one it is
+            //             const izn = nd[0] === -1 ? 0 : nd[1] === -1 ? 1 : nd[2] === -1 ? 2 : -1;
+            //
+            //             //  index of highest-order line at node
+            //             let ilhn = nd[0] > nd[1] ? nd[0] > nd[2] ? nd[0] : nd[2] : nd[1] > nd[2] ? nd[1] : nd[2];
+            //
+            //             //  index of lowest-order line at the node
+            //             const illn = (ilhn + 1) % 3 === izn ? (ilhn + 2) % 3 : (ilhn + 1) % 3;
+            //
+            //             //  determine if node is valid
+            //             v = izn === -1
+            //                 ? !s[nd[0]] !== (s[nd[1]] !== s[nd[2]])     //  if two nodes match, third must be empty; else third must be filled
+            //                 : s[nd[illn]] === s[nd[ilhn]];              //  both nodes must match
+            //
+            //             //  stop checking this line's nodes if either one is invalid
+            //             if(!v) {
+            //                 break;
+            //             }
+            //         }
+            //
+            //         //  set s[] to the next valid state
+            //         //  --> if not valid, increment the current line's state & reset lower-index lines
+            //         //  --> otherwise increment the first line's state
+            //         //  note that incrementing a line's state implies propagating upward to higher-index lines
+            //         //  directly analogous to incrementing a bitwise state integer
+            //         let inc: number = v ? 0 : il;
+            //         if(!v) {
+            //             //  increment this line's state lmin and propagate upward
+            //             //  clear state of all lower-order lines
+            //             //  start over with the first line
+            //             inc = il;
+            //         }
+            //         for(let i = 0; i < inc; i++) {
+            //             s[i] = 0;
+            //         }
+            //         for(let i = inc; i < s.length; i++) {
+            //             if(s[i] === 0) {
+            //                 s[i] = 1;
+            //                 break;
+            //             }
+            //             s[i] = 0;
+            //         }
+            //         if(inc) {
+            //             il = 0;    //  il will be incremented before the start of the next iteration
+            //         }
+            //     }
+            // }
+            //
+            // const state = s.slice().reverse().join('');
+            // if(v) {
+            //     console.info(`valid state ${state}`);
+            //     if(this.checkWin()) {
+            //         SlitherLinkGame.validLoopStates.push(s.slice());
+            //         console.info(`new win state: ${currentState}\n`
+            //             + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
+            //     }
+            // }
 
-            this.setState(currentState, lines);
-            if(this.checkWin()) {
-                SlitherLinkGame.validLoopStates.push(currentState);
-                // console.info(`new win state: ${currentState}\n`
-                //     + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
+            let v: boolean = false;
+            while(!v) {
+                v = true;
+                let loLine: number = Number.POSITIVE_INFINITY;
+                const chk: number[] = [];   //  indices of nodes that have already been checked
+                for(let i = 0; i < l.length; i++) {
+                    let lo: [number, number] = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+                    for(let j = 0; j < 2; j++) {
+                        const node = l[i][j];
+                        if(chk.indexOf(node) >= 0) {
+                            continue;
+                        }
+                        chk.push(node);
+
+                        //  count of filled lines at this node
+                        let c = 0;
+
+                        //  add each line's state to this node's count and find its lowest-index line
+                        for(let k = 0; k < n[node].length; k++) {
+                            const ind = n[node][k];
+                            if(ind < 0) {
+                                continue;
+                            }
+                            c += s[ind];
+                            if(ind < lo[j]) {
+                                lo[j] = ind;
+                            }
+                        }
+
+                        //  nodes must have exactly zero or two filled lines
+                        if(c % 2) {
+                            v = false;
+                            break;
+                        }
+                    }
+                    //  identify the line to increment if the current state is not valid
+                    if(!v) {
+                        if(lo[0] > -1) {
+                            loLine = lo[0] < loLine ? lo[0] : loLine;
+                        }
+                        if(lo[1] > -1) {
+                            loLine = lo[1] < loLine ? lo[1] : loLine;
+                        }
+                        break;
+                    }
+                }
+                //  advance to the next valid state
+                //  skip any states in which a currently invalid node would remain invalid
+                //  if all nodes are valid, just advance the lowest-index line's state
+                for(let j = 0; j < loLine; j++) {
+                    s[j] = 0;
+                }
+                for(let j = loLine; j < l.length; j++) {
+                    if(s[j] === 0) {
+                        s[j] = 1;
+                        break;
+                    }
+                    s[j] = 0;
+                }
             }
         }
 
+        //  express current state as an integer
+        currentState = 0n;
+        for(let i = s.length - 1; i >= 0; i--) {
+            currentState = (currentState << 1n) + BigInt(s[i]);
+        }
+
+        //  state must be set to change what gets animated by draw()
+        this.setState(currentState, lines);
+
         //  update the live progress locally and on the server
         SlitherLinkGame.resumeState = currentState;
-
-        //  log progress/performance
         const currentTime = performance.now();
         if(currentTime > SlitherLinkGame.nextLog) {
             this.logProgress(currentState, currentTime);
-            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000);
+            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000, invalidCount || undefined);
             this.startTime = -1;
             this.startState = -1n;
+            invalidCount = 0;
             this.saveProgress(currentState);
         }
 
@@ -427,13 +598,15 @@ class SlitherLinkGame {
                     const cell = new Cell(x0, y0, json, lineRefs, nodeRefs);
                     this.addCell(cell, cellInd++);
                     for(let n = 0; n < cell.nodes.length; n++) {
-                        if(nodeRefs[n] === null) {
-                            this.addNode(cell.nodes[n], nodeInd++);
+                        const node = cell.nodes[n];
+                        if(node !== null) {
+                            this.addNode(node, nodeInd++);
                         }
                     }
-                    for(let l = 0; l < cell.lines.length; l++) {
-                        if(lineRefs[l] === null) {
-                            this.addLine(cell.lines[l], lineInd++);
+                    for(let l = 0; l < cell.ownLines.length; l++) {
+                        const line = cell.ownLines[l];
+                        if(line !== null) {
+                            this.addLine(line, lineInd++);
                         }
                     }
                     board[q][r] = cell;
@@ -520,12 +693,11 @@ class SlitherLinkGame {
     }
     //  pause the simulation if it is currently running
     pauseSimulation(): void {
-        if(!SlitherLinkGame.frameRequest && !this.simTimeout) {
+        if(!this.simTimeout) {
             return;
         }
 
         window.clearTimeout(this.simTimeout);
-        SlitherLinkGame.frameRequest = 0;
         this.simTimeout = 0;
         let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
         let percent = `${(Number(progress) / 10).toFixed(2)}%`;
@@ -534,7 +706,7 @@ class SlitherLinkGame {
     }
     //  start/resume the simulation if it is currently paused
     resumeSimulation(): void {
-        if(SlitherLinkGame.frameRequest) {
+        if(this.simTimeout) {
             return;
         }
         this.combinate();
@@ -602,9 +774,12 @@ class SlitherLinkGame {
         SlitherLinkGame.nextLog = currentTime + SlitherLinkGame.logPeriod;
     }
     /** log stats of current simulation run (since started/resumed) */
-    logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000): void {
+    logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000, invalids?: number): void {
         const avg = Number(elapsedStates) / elapsedTime;   //  convert ms to seconds (cast BigInts back to Numbers to preserve sigfigs that would otherwise be lost to rounding)
         console.info(`current run: ${avg.toFixed(1)} states/s\n%c${elapsedStates} states in ${(elapsedTime).toFixed(3)}s`, 'color: #888888;');
+        if(invalids !== undefined) {
+            console.debug(`%cskipped checking ${invalids} invalid states`, 'color: #888888');
+        }
     }
     /** save current progress to server */
     async saveProgress(currentState: bigint = SlitherLinkGame.resumeState): Promise<boolean> {
@@ -646,8 +821,10 @@ class SlitherLinkGame {
         }
 
         //  set each line's state based on corresponding bit in 'state'
+        let lineMask = 1n;
         for(let i = 0; i < lines.length; i++) {
-            lines[i].state = (state & BigInt(Math.pow(2, i))) ? LineState.LINE : LineState.INDET;
+            lines[i].state = (state & lineMask) ? LineState.LINE : LineState.INDET;
+            lineMask <<= 1n;
         }
     }
 }
