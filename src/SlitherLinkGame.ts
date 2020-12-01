@@ -187,12 +187,23 @@ class SlitherLinkGame {
             this.startState = currentState;
         }
 
-        const s: LineState[] = lines.map(line => line.state);
+        const s: LineState[] = new Array(lines.length);
+        let bitMask = 1n;
+        for(let i = 0; i < s.length; i++) {
+            s[i] = currentState & bitMask ? 1 : 0;
+            bitMask <<= 1n;
+        }
         const l: number[][] = lines.map(line => line.nodes.map(node => this.nodes.indexOf(node)));
         const n: number[][] = this.nodes.map(node => node.lines.map(line => lines.indexOf(line)));
         // console.debug(s);
         // console.debug(l);
         // console.debug(n);
+
+        //  within the inner while loop, 'v' is a copy of the state 's' being evaluated
+        //  if 's' is invalid, 'v' is reset to the empty array and so the loop continues
+        //  if 's' is valid, 'v' remains as a copy of 's' and the loop ends
+        //  'v' is therefore guaranteed to be a valid state on loop exit (unless
+        let v: LineState[] = [];
 
         const yieldSchedule = performance.now() + 50;
         while(performance.now() < yieldSchedule) {
@@ -203,92 +214,26 @@ class SlitherLinkGame {
                 this.logCurrentRun(currentState - this.startState, (performance.now() - this.startTime) / 1000)
                 this.saveProgress(SlitherLinkGame.resumeState);
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
+                console.debug('%cif this seems incorrect, it\'s possible that the "valid" array \'v\' was cleared erroneously before the outer loop exited');
                 this.draw(400, 300);
                 return;
             }
 
-            // //  check states until a valid one is found
-            // let v = false;
-            // while(!v) {
-            //
-            //     //  check every node on the board
-            //     let chk: number[] = [];
-            //     //  will il always be the lowest-index line...?
-            //     //  if so this can use a while loop and the index can be used in subsequent increment loops
-            //     for(let il = 0; il < l.length; il++) {
-            //         //  each line has two nodes
-            //         for(let inl = 0; inl < 2; inl++) {
-            //             //  but skip a node if it's already been checked
-            //             if(chk.includes(l[il][inl])) {
-            //                 continue;
-            //             }
-            //             //  get the node's lines and mark it so it won't be checked again
-            //             const nd = n[l[il][inl]];
-            //             chk.push(l[il][inl]);
-            //
-            //             //  check whether this node has a null line and, if so, which one it is
-            //             const izn = nd[0] === -1 ? 0 : nd[1] === -1 ? 1 : nd[2] === -1 ? 2 : -1;
-            //
-            //             //  index of highest-order line at node
-            //             let ilhn = nd[0] > nd[1] ? nd[0] > nd[2] ? nd[0] : nd[2] : nd[1] > nd[2] ? nd[1] : nd[2];
-            //
-            //             //  index of lowest-order line at the node
-            //             const illn = (ilhn + 1) % 3 === izn ? (ilhn + 2) % 3 : (ilhn + 1) % 3;
-            //
-            //             //  determine if node is valid
-            //             v = izn === -1
-            //                 ? !s[nd[0]] !== (s[nd[1]] !== s[nd[2]])     //  if two nodes match, third must be empty; else third must be filled
-            //                 : s[nd[illn]] === s[nd[ilhn]];              //  both nodes must match
-            //
-            //             //  stop checking this line's nodes if either one is invalid
-            //             if(!v) {
-            //                 break;
-            //             }
-            //         }
-            //
-            //         //  set s[] to the next valid state
-            //         //  --> if not valid, increment the current line's state & reset lower-index lines
-            //         //  --> otherwise increment the first line's state
-            //         //  note that incrementing a line's state implies propagating upward to higher-index lines
-            //         //  directly analogous to incrementing a bitwise state integer
-            //         let inc: number = v ? 0 : il;
-            //         if(!v) {
-            //             //  increment this line's state lmin and propagate upward
-            //             //  clear state of all lower-order lines
-            //             //  start over with the first line
-            //             inc = il;
-            //         }
-            //         for(let i = 0; i < inc; i++) {
-            //             s[i] = 0;
-            //         }
-            //         for(let i = inc; i < s.length; i++) {
-            //             if(s[i] === 0) {
-            //                 s[i] = 1;
-            //                 break;
-            //             }
-            //             s[i] = 0;
-            //         }
-            //         if(inc) {
-            //             il = 0;    //  il will be incremented before the start of the next iteration
-            //         }
-            //     }
-            // }
-            //
-            // const state = s.slice().reverse().join('');
-            // if(v) {
-            //     console.info(`valid state ${state}`);
-            //     if(this.checkWin()) {
-            //         SlitherLinkGame.validLoopStates.push(s.slice());
-            //         console.info(`new win state: ${currentState}\n`
-            //             + `total win states identified: ${SlitherLinkGame.validLoopStates.length}`);
-            //     }
-            // }
+            while(!v.length) {
 
-            let v: boolean = false;
-            while(!v) {
-                v = true;
+                //  determining validity is a process of elimination
+                //  for each state, 'v' must initially indicate valid
+                v = s.slice();
+
+                //  lowest-index line at the invalid node
                 let loLine: number = Number.POSITIVE_INFINITY;
-                const chk: number[] = [];   //  indices of nodes that have already been checked
+
+                //  keep track of nodes that have already been checked for the current state
+                const chk: number[] = [];
+
+                //  validity is evaluated at nodes, but states are determined by lines
+                //  lines are given precedence based on their index in 'l'
+                //  therefore iterate over 'l' instead of 'n'
                 for(let i = 0; i < l.length; i++) {
                     let lo: [number, number] = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
                     for(let j = 0; j < 2; j++) {
@@ -315,17 +260,17 @@ class SlitherLinkGame {
 
                         //  nodes must have exactly zero or two filled lines
                         if(c % 2) {
-                            v = false;
+                            v = [];
                             break;
                         }
                     }
                     //  identify the line to increment if the current state is not valid
-                    if(!v) {
-                        if(lo[0] > -1) {
-                            loLine = lo[0] < loLine ? lo[0] : loLine;
+                    if(!v.length) {
+                        if(lo[0] > -1 && lo[0] < loLine) {
+                            loLine = lo[0];
                         }
-                        if(lo[1] > -1) {
-                            loLine = lo[1] < loLine ? lo[1] : loLine;
+                        if(lo[1] > -1 && lo[0] < loLine) {
+                            loLine = lo[1];
                         }
                         break;
                     }
@@ -339,13 +284,14 @@ class SlitherLinkGame {
                 //  if the high bit changes from 1 to 0, the final state has been reached
                 let overflow = s[s.length - 1];
 
-                //  advance to the next valid state
+                //  advance 's' to the next (potentially) valid state
                 //  skip any states in which a currently invalid node would remain invalid
                 //  if all nodes are valid, just advance the lowest-index line's state
                 let i = 0;
                 for(; i < loLine; i++) {
                     s[i] = 0;
                 }
+                // let tmp = i;
                 for(; i < l.length ; i++) {
                     if(s[i] === 0) {
                         s[i] = 1;
@@ -360,32 +306,40 @@ class SlitherLinkGame {
                     for(; i < s.length; i++) {
                         s[i] = 1;
                     }
+
+                    //  set local 'currentState' and update Line states accordingly
                     currentState = SlitherLinkGame.numStates - 1n;
                     this.setState(currentState, lines);
+
+                    //  ensure that the outer while loop continues to trigger final-state condition at top
+                    v = [];
                     break;
                 }
             }
         }
 
-        //  express current state as an integer
+        //  express current/next states as integers
         currentState = 0n;
+        let nextState = SlitherLinkGame.numStates - 1n;
         for(let i = s.length - 1; i >= 0; i--) {
-            currentState = (currentState << 1n) + BigInt(s[i]);
+            currentState = (currentState << 1n) + BigInt(v[i]);
+            nextState = (nextState << 1n) + BigInt(s[i]);
         }
 
         //  state must be set to change what gets animated by draw()
         this.setState(currentState, lines);
 
         //  update the live progress locally and on the server
-        SlitherLinkGame.resumeState = currentState;
+        //  use 'nextState' so that console messages and saved progress reflect known invalid states
+        SlitherLinkGame.resumeState = nextState;
         const currentTime = performance.now();
         if(currentTime > SlitherLinkGame.nextLog) {
-            this.logProgress(currentState, currentTime);
-            this.logCurrentRun(currentState - this.startState, (currentTime - this.startTime) / 1000, invalidCount || undefined);
+            this.logProgress(nextState, currentTime);
+            this.logCurrentRun(nextState - this.startState, (currentTime - this.startTime) / 1000, invalidCount || undefined);
             this.startTime = -1;
             this.startState = -1n;
             invalidCount = 0;
-            this.saveProgress(currentState);
+            this.saveProgress(nextState);
         }
 
         //  if the most recent frame has been drawn to the canvas, request the next frame
@@ -395,7 +349,7 @@ class SlitherLinkGame {
 
         //  schedule another run on the window's execution queue
         //  if a 'click' event is pending/queued, this will be cleared before it is invoked
-        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, currentState));
+        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, nextState));
     }
 
     /** check if the current game state is a valid solution
