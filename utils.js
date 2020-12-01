@@ -10,7 +10,7 @@ module.exports = {
         if(this.isHash(ref)) {
             return ref;
         }
-        if(ref.search(/ref:\b?refs\//) === 0) {
+        if(ref.search(/ref:\s?refs\//) === 0) {
             ref = ref.slice(ref.indexOf('refs/') + 5).trim();
         }
         const parts = ref.split('/');
