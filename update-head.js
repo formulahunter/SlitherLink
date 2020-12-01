@@ -3,12 +3,11 @@ async function update_head() {
     const utils = require('./utils.js');
 
     let [newBranch, newHead] = await utils.getRef(await utils.getHEAD());
-    newBranch = newBranch === utils.getEnvBranch() ? newBranch : '';
 
     const options = {
         files: 'environment.js',
         from: [/head: '.*',?/g],
-        to: [`head: '${newHead}`],
+        to: [`head: '${newHead}',`],
         countMatches: true,
         allowEmptyPaths: false
     };
@@ -23,7 +22,7 @@ async function update_head() {
             throw 'pattern not found';
         }
         if(changedFiles[0].numReplacements < options.from.length) {
-            throw 'at least one head parameter was not updated as intended';
+            throw 'at least one head parameter was not updated\nthis may be caused by switching to a new branch with the same head';
         }
     }
     catch(er) {
