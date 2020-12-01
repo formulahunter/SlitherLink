@@ -329,6 +329,12 @@ class SlitherLinkGame {
                         break;
                     }
                 }
+
+                //  if this state is valid, loLine will still have its initial value
+                if(loLine === Number.POSITIVE_INFINITY) {
+                    loLine = 0;
+                }
+
                 //  advance to the next valid state
                 //  skip any states in which a currently invalid node would remain invalid
                 //  if all nodes are valid, just advance the lowest-index line's state
