@@ -200,6 +200,7 @@ class SlitherLinkGame {
             if(currentState === SlitherLinkGame.numStates - 1n) {
                 SlitherLinkGame.resumeState = currentState;
                 this.logProgress(currentState);
+                this.logCurrentRun(currentState - this.startState, (performance.now() - this.startTime) / 1000)
                 this.saveProgress(SlitherLinkGame.resumeState);
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
                 this.draw(400, 300);
@@ -335,18 +336,33 @@ class SlitherLinkGame {
                     loLine = 0;
                 }
 
+                //  if the high bit changes from 1 to 0, the final state has been reached
+                let overflow = s[s.length - 1];
+
                 //  advance to the next valid state
                 //  skip any states in which a currently invalid node would remain invalid
                 //  if all nodes are valid, just advance the lowest-index line's state
-                for(let j = 0; j < loLine; j++) {
-                    s[j] = 0;
+                let i = 0;
+                for(; i < loLine; i++) {
+                    s[i] = 0;
                 }
-                for(let j = loLine; j < l.length; j++) {
-                    if(s[j] === 0) {
-                        s[j] = 1;
+                for(; i < l.length ; i++) {
+                    if(s[i] === 0) {
+                        s[i] = 1;
                         break;
                     }
-                    s[j] = 0;
+                    s[i] = 0;
+                }
+
+                //  check "overflow" condition
+                if(s[s.length - 1] - overflow < 0) {
+                    i = 0;
+                    for(; i < s.length; i++) {
+                        s[i] = 1;
+                    }
+                    currentState = SlitherLinkGame.numStates - 1n;
+                    this.setState(currentState, lines);
+                    break;
                 }
             }
         }

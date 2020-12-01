@@ -2,6 +2,6 @@ module.exports = {
     production: false,
     version: 'DEV',
     branch: 'minimal-array-algo',
-    head: '15e308ac1d29dedba99ec4800d8716945065b9aa',
-    build: 41,
+    head: 'f402d59f2413e29c1e6a107ae8682ff6057dd082',
+    build: 55,
 };
