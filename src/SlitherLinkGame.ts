@@ -35,17 +35,6 @@ function getLineState(lineIndex: number, state: bigint): (1 | 0) {
     return state & 1n << BigInt(lineIndex) ? 1 : 0;
 }
 
-window.step = function(states = 1) {
-    if(states < 1) return;
-    window.game.combinate();
-    while(window.game.simGen) window.game.simGen.next();
-    window.setTimeout(() => window.step(--states));
-}
-
-window.debug = false;
-
-let validCount: number = 0;
-let statesChecked: number = 0;
 
 let invalidCount: number = -1;
 class SlitherLinkGame {
@@ -139,7 +128,7 @@ class SlitherLinkGame {
         SlitherLinkGame.numStates = 2n ** BigInt(this.lineCount);
 
         //  define event listeners on canvas element
-        // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
 
         // this.canvas = canvas;
@@ -185,22 +174,14 @@ class SlitherLinkGame {
         console.log(`starting simulation with state ${(SlitherLinkGame.initialState)}\n${percent}% %cof ${SlitherLinkGame.numStates}`, 'color: #888888');
         console.info('%csimulation will not stop itself\n%cclick on the canvas to pause/resume', 'color: #e0e0a0; background-color: #606040;', 'color: #888888; background-color: unset;');
 
-        const gen = this.drawComboFrame(this.lines, SlitherLinkGame.initialState);
-        this.simGen = gen;
-        gen.next();
-        // this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState), 0);
+        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState), 0);
     }
     /** animate frames by setting each line state to the corresponding bit in
      *  'currentState'
      * @param lines
      * @param currentState
      */
-    private *drawComboFrame(lines: Line[], currentState: bigint) {
-
-        //  clear the excessive number of info and debug messages
-        if(!window.debug) {
-            console.clear();
-        }
+    private drawComboFrame(lines: Line[], currentState: bigint) {
 
         //  un-set the timeout id in case this method does not run to completion (where a new ID will be assigned)
         this.simTimeout = 0;
@@ -210,8 +191,6 @@ class SlitherLinkGame {
             this.startState = currentState;
         }
 
-        const grey = 'color: #888888;';
-
         const s: LineState[] = new Array(lines.length);
         let bitMask = 1n;
         for(let i = 0; i < s.length; i++) {
@@ -220,9 +199,6 @@ class SlitherLinkGame {
         }
         const l: number[][] = lines.map(line => line.nodes.map(node => this.nodes.indexOf(node)));
         const n: number[][] = this.nodes.map(node => node.lines.map(line => lines.indexOf(line)));
-        // console.debug(s);
-        // console.debug(l);
-        // console.debug(n);
 
         //  determining validity is a process of elimination
         //  for each state, 'v' must initially indicate valid
@@ -233,9 +209,8 @@ class SlitherLinkGame {
         //  'v' is therefore guaranteed to be a valid state on loop exit (unless
         let v: LineState[] = [];
 
-        // const yieldSchedule = performance.now() + 50;
-        // while(performance.now() < yieldSchedule) {
-        // while(validCount < 10 || !v.length) {
+        const yieldSchedule = performance.now() + 50;
+        while(performance.now() < yieldSchedule) {
 
             if(currentState === SlitherLinkGame.numStates - 1n) {
                 SlitherLinkGame.resumeState = currentState;
@@ -244,7 +219,7 @@ class SlitherLinkGame {
                 this.saveProgress(SlitherLinkGame.resumeState);
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
                 console.debug('%cif this seems incorrect, it\'s possible that the "valid" array \'v\' was cleared erroneously before the outer loop exited');
-                console.info(`${validCount} valid states counted`);
+                console.info(`${SlitherLinkGame.validLoopStates.length} valid states counted`);
                 this.draw(400, 300);
                 return;
             }
@@ -265,9 +240,6 @@ class SlitherLinkGame {
                 //  keep track of nodes that have already been checked for the current state
                 const chk: number[] = [];
 
-                console.debug(`checking state s = [${s.join()}]\n%creset v = [${v.join()}]\nreset hiLine = ${hiLine}\nreset chk = [${chk.join()}]`, grey);
-                yield '';
-
                 //  validity is evaluated at nodes, but states are determined by lines
                 //  lines are given precedence based on their index in 'l'
                 //  therefore iterate over 'l' instead of 'n'
@@ -278,21 +250,12 @@ class SlitherLinkGame {
                 //  - e.g. if invalid nodes have lines [4, 5, 6] and [16, 17, 18], incrementing line 4 will be pointless
                 //    because the other node will still be invalid
                 for(let i = l.length - 1; i >= 0; i--) {
-                    console.debug(`l[${i}] === [${l[i].join()}]`);
-                    let tmpNodeI = [];
-                    let tmpNodeV = [];
                     for(let j = 0; j < 2; j++) {
                         const node = l[i][j];
                         if(chk.indexOf(node) >= 0) {
-                            console.debug(`%cn[${node}] has already been validated`, grey);
-                            tmpNodeV.push(node);
                             continue;
                         }
                         chk.push(node);
-
-                        let tmp = n[node].filter(l => l >= 0);
-                        console.debug(`%cn[${node}] = [${n[node].join()}]`, grey);
-                        console.debug(`s[...[${tmp.join()}]] = [${tmp.map(t => s[t]).join()}]`);
 
                         //  count of filled lines at this node
                         let c = 0;
@@ -300,58 +263,27 @@ class SlitherLinkGame {
                         //  add each line's state to this node's count
                         //  record this node's lowest-index line
                         let lo: number = i;
-                        tmp = [];
                         for(let k = 0; k < n[node].length; k++) {
                             const ind = n[node][k];
                             if(ind < 0) {
                                 continue;
                             }
-                            tmp[tmp.length] = s[ind];
                             if(ind < lo) {
                                 lo = ind;
                             }
                             c += s[ind];
                         }
-                        console.debug(`%c${c} of ${tmp.length} lines filled`, grey);
 
                         //  nodes must have exactly zero or two filled lines
-                        if(c % 2) {
-                            if(lo > hiLine) {
-                                hiLine = lo;
-                                tmpNodeI.unshift(node);
-                            }
-                            else {
-                                tmpNodeI.push(node);
-                            }
-                            console.debug(`%cn[${node}] is invalid`, grey);
-                        }
-                        else {
-                            tmpNodeV.push(node);
-                            console.debug(`%cn[${node}] is valid`, grey)
+                        if(c % 2 && lo > hiLine) {
+                            hiLine = lo;
                         }
                     }
-
-                    //  visually indicate valid/invalid nodes of the current line
-                    if(SlitherLinkGame.frameRequest) {
-                        window.cancelAnimationFrame(SlitherLinkGame.frameRequest);
-                        SlitherLinkGame.frameRequest = 0;
-                    }
-                    SlitherLinkGame.frameRequest = window.requestAnimationFrame(() => {
-                        this.draw(400, 300);
-                        if(tmpNodeI.length) this.markNodes(400, 300, tmpNodeI, false);
-                        if(tmpNodeV.length) this.markNodes(400, 300, tmpNodeV, true);
-                    });
 
                     //  if an invalid node has been identified, don't check any more lines
                     if(hiLine >= 0) {
-                        console.info(`line ${i} has at least 1 invalid node\n%clowest-order line is l[${hiLine}] at node n[${tmpNodeI[0]}]`, grey);
-                        yield;
                         break;
                     }
-                    else {
-                        console.debug(`line ${i} has 2 valid nodes`);
-                    }
-                    yield;
                 }
 
                 //  if the current state is valid, define v to exit the inner 'while' loops and record the state
@@ -359,10 +291,6 @@ class SlitherLinkGame {
                 if(hiLine < 0) {
                     v = s.slice();
                     hiLine = 0;
-                    console.info(`valid state: ${v.slice().reverse().join('')}`);
-                }
-                else {
-                    console.info(`invalid state: ${s.slice().reverse().join('')}`);
                 }
 
                 //  record high bit to check "overflow" condition after 's' loops
@@ -382,9 +310,6 @@ class SlitherLinkGame {
                     }
                     s[i] = 0;
                 }
-                this.setState(s, lines);
-                this.draw(400, 300);
-                console.info(`next possible state: ${s.slice().reverse().join('')}`);
 
                 //  if the high bit changes from 1 to 0, the final state has been reached
                 if(s[s.length - 1] === 0 && overflow === 1) {
@@ -400,24 +325,13 @@ class SlitherLinkGame {
 
                     //  ensure that the outer while loop continues to trigger final-state condition at top
                     v = [];
-                    console.debug(`states exhausted\ns set to final state: [${s.join()}]\ncurrentState too: ${currentState}\ngame state set to match\nv emptied to continue loop: [${v.join()}]`);
-                    yield;
                     break;
                 }
-                console.debug(`%cstate has not exceeded numStates ${SlitherLinkGame.numStates}`, grey);
-
-                if(!v.length) {
-                    statesChecked++;
-                    yield 'invalid-state';
-                }
             }
-            //  for a game board of radius 3, expect 128 valid solutions (including multiple rings)
-            //    (7 | 0) + (7 | 1) + (7 | 2) + (7 | 3) + (7 | 4) + (7 | 5) + (7 | 6) + (7 | 7)  (binomial coefficients)
-            //  =   1     +    7    +    21   +   35    +   35    +    21   +    7    +    1
-            //  =  128
-            // SlitherLinkGame.validLoopStates.push(s.slice());
-            validCount++;
-        // }
+            if(v.length) {
+                SlitherLinkGame.validLoopStates.push(v.slice());
+            }
+        }
 
         //  express current/next states as integers
         currentState = 0n;
@@ -426,8 +340,6 @@ class SlitherLinkGame {
             currentState = (currentState << 1n) + BigInt(v[i]);
             nextState = (nextState << 1n) + BigInt(s[i]);
         }
-        console.info(`${validCount} valid states identified\n${statesChecked} total states checked\n${currentState - BigInt(statesChecked)} states skipped`);
-        yield 'valid-state';
 
         //  state must be set to change what gets animated by draw()
         this.setState(currentState, lines);
@@ -447,13 +359,12 @@ class SlitherLinkGame {
 
         //  if the most recent frame has been drawn to the canvas, request the next frame
         if(!SlitherLinkGame.frameRequest) {
-            // SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.draw.bind(this, 400, 300));
+            SlitherLinkGame.frameRequest = window.requestAnimationFrame(this.draw.bind(this, 400, 300));
         }
 
         //  schedule another run on the window's execution queue
         //  if a 'click' event is pending/queued, this will be cleared before it is invoked
-        // this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, nextState));
-        this.simGen = null;
+        this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, nextState));
     }
 
     /** check if the current game state is a valid solution
@@ -756,22 +667,21 @@ class SlitherLinkGame {
             return;
         }
 
-        // //  log current progress
-        // this.logProgress(SlitherLinkGame.resumeState);
-        // this.logCurrentRun(SlitherLinkGame.resumeState);
+        //  log current progress
+        this.logProgress(SlitherLinkGame.resumeState);
+        this.logCurrentRun(SlitherLinkGame.resumeState);
 
         //  pause/resume simulation
         this.toggleSimulation();
     }
     //  pause the simulation if it is currently running, otherwise resume it
     toggleSimulation(): void {
-        // if(this.simTimeout) {
-        //     this.pauseSimulation();
-        // }
-        // else {
-        //     this.resumeSimulation();
-        // }
-        this.resumeSimulation();
+        if(this.simTimeout) {
+            this.pauseSimulation();
+        }
+        else {
+            this.resumeSimulation();
+        }
     }
     //  pause the simulation if it is currently running
     pauseSimulation(): void {
@@ -788,12 +698,10 @@ class SlitherLinkGame {
     }
     //  start/resume the simulation if it is currently paused
     resumeSimulation(): void {
-        if(this.simGen) {
-            this.simGen.next();
+        if(this.simTimeout) {
+            return;
         }
-        else {
-            this.combinate();
-        }
+        this.combinate();
     }
 
     draw(x0: number, y0: number): void {
@@ -848,24 +756,6 @@ class SlitherLinkGame {
         //  reset the transform
         ctx.resetTransform();
     }
-    markNodes(x0: number, y0: number, nodes: number[], valid: boolean) {
-
-        let ctx: CanvasRenderingContext2D = this.ctx;
-        ctx.resetTransform();
-
-        //  set the given origin as the center of the board
-        ctx.translate(x0 - this.radius * Cell.DX * 2, y0);
-
-        ctx.fillStyle = valid ? CSSColor.green : CSSColor.red;
-
-        for(let i = 0; i < nodes.length; i++) {
-            ctx.beginPath();
-            ctx.arc(this.nodes[nodes[i]].x, this.nodes[nodes[i]].y, 4, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-        ctx.resetTransform();
-    }
 
     /** log big-picture progress */
     logProgress(statesChecked: bigint, currentTime: DOMHighResTimeStamp = performance.now()): void {
@@ -885,35 +775,34 @@ class SlitherLinkGame {
     }
     /** save current progress to server */
     async saveProgress(currentState: bigint = SlitherLinkGame.resumeState): Promise<boolean> {
-        // //  POST current state to server
-        // const req = fetch('progress', {
-        //     method: 'POST',
-        //     body: JSON.stringify({progress: currentState.toString()}),
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         Accept: '*'
-        //     }
-        // });
-        // const res = await req;
-        //
-        // //  return true if request was successful
-        // if(res && res.status === 200) {
-        //     console.log('%cprogress saved to server', 'color: #a0e0a0; background-color: #406040;');
-        //     console.info(`%c${currentState} of ${SlitherLinkGame.numStates} states`, 'color: #888888; background-color: unset;');
-        //     return true;
-        // }
-        //
-        // //  log the request failure & return false
-        // if(!res) {
-        //     console.error(`no response received from server\nverify that progress was written`);
-        // }
-        // else if(res.status !== 200) {
-        //     console.warn(`unexpected status code received from server: ${res.status} - ${res.statusText}\n`);
-        // }
-        // console.warn(`verify that progress was written to file (currently ${currentState} of ${SlitherLinkGame.resumeState} states)`);
+        //  POST current state to server
+        const req = fetch('progress', {
+            method: 'POST',
+            body: JSON.stringify({progress: currentState.toString()}),
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: '*'
+            }
+        });
+        const res = await req;
 
-        // return false
-        return true;
+        //  return true if request was successful
+        if(res && res.status === 200) {
+            console.log('%cprogress saved to server', 'color: #a0e0a0; background-color: #406040;');
+            console.info(`%c${currentState} of ${SlitherLinkGame.numStates} states`, 'color: #888888; background-color: unset;');
+            return true;
+        }
+
+        //  log the request failure & return false
+        if(!res) {
+            console.error(`no response received from server\nverify that progress was written`);
+        }
+        else if(res.status !== 200) {
+            console.warn(`unexpected status code received from server: ${res.status} - ${res.statusText}\n`);
+        }
+        console.warn(`verify that progress was written to file (currently ${currentState} of ${SlitherLinkGame.resumeState} states)`);
+
+        return false;
     }
 
     /** Accepts an optional lines argument to expedite in the case where lines
