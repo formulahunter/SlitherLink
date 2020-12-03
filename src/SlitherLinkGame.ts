@@ -220,6 +220,7 @@ class SlitherLinkGame {
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
                 console.debug('%cif this seems incorrect, it\'s possible that the "valid" array \'v\' was cleared erroneously before the outer loop exited');
                 console.info(`${SlitherLinkGame.validLoopStates.length} valid states counted`);
+                this.setState(currentState, lines);
                 this.draw(400, 300);
                 return;
             }
@@ -321,7 +322,6 @@ class SlitherLinkGame {
 
                     //  set local 'currentState' and update Line states accordingly
                     currentState = SlitherLinkGame.numStates - 1n;
-                    this.setState(currentState, lines);
 
                     //  ensure that the outer while loop continues to trigger final-state condition at top
                     v = [];
