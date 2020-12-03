@@ -224,12 +224,12 @@ class SlitherLinkGame {
                 return;
             }
 
+            //  reset 'v' to empty array in case the previous iteration found a valid state
+            v = [];
+
             //  can't use hiLine for this loop because it will always have a value equal to or greater than zero at the
             //  end of the loop
             while(!v.length) {
-
-                //  reset 'v' to empty array in case the previous iteration found a valid state
-                v = [];
 
                 //  highest-index line at the invalid node
                 //  lines are iterated in order of descending index, so the current line 'l[i]' will always be the
