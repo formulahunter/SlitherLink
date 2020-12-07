@@ -26,6 +26,7 @@ app.post('/progress', async (req, res) => {
 // a function to end processing and send a response
 // @ts-ignore
 app.use('/lib', express.static('lib'));
+app.use('/src', express.static('src', {extensions: 'ts'}));
 app.use(express.static('public', {extensions: 'html'}));
 
 app.listen(3000, function() {
