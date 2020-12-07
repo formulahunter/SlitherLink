@@ -7,7 +7,7 @@ import SlitherLinkGame from './SlitherLinkGame.js';
     }
 
     let game: SlitherLinkGame = new SlitherLinkGame(1, canvas);
-    game.resumeSimulation();
+    // game.resumeSimulation();
 
     // @ts-ignore
     window.game = game;

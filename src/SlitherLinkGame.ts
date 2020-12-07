@@ -218,7 +218,6 @@ class SlitherLinkGame {
                 this.logCurrentRun(currentState - this.startState, (performance.now() - this.startTime) / 1000)
                 this.saveProgress(SlitherLinkGame.resumeState);
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
-                console.debug('%cif this seems incorrect, it\'s possible that the "valid" array \'v\' was cleared erroneously before the outer loop exited');
                 console.info(`${SlitherLinkGame.validLoopStates.length} valid states counted`);
                 this.setState(currentState, lines);
                 this.draw(400, 300);
@@ -232,65 +231,84 @@ class SlitherLinkGame {
             //  end of the loop
             while(!v.length) {
 
-                //  highest-index line at the invalid node
-                //  lines are iterated in order of descending index, so the current line 'l[i]' will always be the
-                //  highest-index line at any/either node being checked
-                //
+                //  count of filled lines
+                let c: number = 0;
+                for(let i = 0; i < s.length; i++) {
+                    c += s[i];
+                }
+
+                //  the greater of the two invalid nodes' respective lowest-index lines
+                //  if only one invalid node, then it's lowest-index line
                 let hiLine: number = -1;
+                //  find the first filled line in `l` and get all lines in the associated path
+                let [pl, pn]: [number[], number[]] = this.compilePath(l, n, s);
 
-                //  keep track of nodes that have already been checked for the current state
-                const chk: number[] = [];
+                //  if this is a valid state, copy 's' into 'v', push to 'validLoopStates', and set 'hiLine' to 0
+                //  otherwise, determine the next line to be incremented
+                if(pn[0] === pn[pn.length - 1] && pl.length === c) {
+                    v = s.slice();
+                    hiLine = 0;
+                }
+                else {
+                    //  * check lowest-index line at both end nodes of the current path and nominate the greater of the
+                    //    two as the possible next line to be incremented (if greater than currently nominated line)
+                    //  * after each path is checked, perform another filled-line search starting with the line one
+                    //    index position above the highest-index filled line found so far
+                    //  * continue until all paths have been checked
+                    while(pl[0] < l.length) {
 
-                //  validity is evaluated at nodes, but states are determined by lines
-                //  lines are given precedence based on their index in 'l'
-                //  therefore iterate over 'l' instead of 'n'
-                //
-                //  iterate over 'l' in reverse order to ensure highest-order line at any invalid node is incremented
-                //  - if multiple invalid nodes, incrementing lowest-order line is pointless unless it happens to meet
-                //    the invalid node with the highest-order line (of all invalid nodes)
-                //  - e.g. if invalid nodes have lines [4, 5, 6] and [16, 17, 18], incrementing line 4 will be pointless
-                //    because the other node will still be invalid
-                for(let i = l.length - 1; i >= 0; i--) {
-                    for(let j = 0; j < 2; j++) {
-                        const node = l[i][j];
-                        if(chk.indexOf(node) >= 0) {
-                            continue;
-                        }
-                        chk.push(node);
+                        //  * if pl forms a continuous loop and it contains every filled line, this is a valid state
+                        //  * otherwise this is an invalid state but there may be higher-index lines on the board
+                        //    - find the lowest-index line at the start and end nodes of the current path, pick the highest
+                        //      among them, and assign to hiLine, if greater than current value, as the next to be advanced
+                        //    - if any lines remain unchecked, start the next search with the next-higher line (tracked
+                        //      separately from hiLine)
 
-                        //  count of filled lines at this node
-                        let c = 0;
-
-                        //  add each line's state to this node's count
-                        //  record this node's lowest-index line
-                        let lo: number = i;
-                        for(let k = 0; k < n[node].length; k++) {
-                            const ind = n[node][k];
-                            if(ind < 0) {
-                                continue;
+                        //  the only lines whose state change may produce a valid state are the ones at path's start/end
+                        //  nodes, update hiLine to the greater of their respective lowest-index lines
+                        const r = pn[0];
+                        const e = pn[pn.length - 1];
+                        const lr = [];  //  lines @ start node
+                        const le = [];  //  lines @ end node
+                        for(let i = 0; i < 3; i++) {
+                            if(n[r][i] >= 0) {
+                                lr[lr.length] = n[r][i];
                             }
-                            if(ind < lo) {
-                                lo = ind;
+                            if(n[e][i] >= 0) {
+                                le[le.length] = n[e][i];
                             }
-                            c += s[ind];
+                        }
+                        const [rLo, eLo] = [
+                            lr.length === 3 ? Math.min(lr[0], lr[1], lr[2]) : Math.min(lr[0], lr[1]),
+                            le.length === 3 ? Math.min(le[0], le[1], le[2]) : Math.min(le[0], le[1])
+                        ];      //  lowest-index line at start & end nodes, respectively
+                        if(rLo < eLo) {
+                            if(rLo > hiLine) {
+                                hiLine = rLo;
+                            }
+                        }
+                        else if(eLo > hiLine) {
+                            hiLine = eLo;
                         }
 
-                        //  nodes must have exactly zero or two filled lines
-                        if(c % 2 && lo > hiLine) {
-                            hiLine = lo;
+                        //  record the highest index in p, then check for any higher-index filled lines and repeat
+                        let m = pl[0];
+                        for(let i = 1; i < pl.length; i++) {
+                            if(pl[i] > m) {
+                                //  don't assign this to hiLine directly as incrementing a line in the middle of a path
+                                //  will never result in a valid state
+                                m = pl[i];
+                            }
                         }
-                    }
-
-                    //  if an invalid node has been identified, don't check any more lines
-                    if(hiLine >= 0) {
-                        break;
+                        //  check for other filled lines, starting with the next-highest index line
+                        //  any lines returned are guaranteed to not be part of the path p or its adjacent lines,
+                        //  nor any of the same from prior iterations
+                        [pl, pn] = this.compilePath(l, n, s, m + 1);
                     }
                 }
 
-                //  if the current state is valid, define v to exit the inner 'while' loops and record the state
-                //  this also means hiLine is still -1 but needs to be 0 for the following 's' loops
+                //  if hiLine has not been set, set it to zero for the state increment loops below
                 if(hiLine < 0) {
-                    v = s.slice();
                     hiLine = 0;
                 }
 
@@ -365,6 +383,98 @@ class SlitherLinkGame {
         //  schedule another run on the window's execution queue
         //  if a 'click' event is pending/queued, this will be cleared before it is invoked
         this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, nextState));
+    }
+
+    /** find a complete loop and count the number of lines in it
+     *
+     *
+     * @param l - array of lines as indices of start & end nodes
+     * @param n - array of nodes as indices of intersecting lines
+     * @param s - array of states of lines at corresponding positions in `l`
+     * @param start - index of the line where the search for a path will begin
+     *
+     * @return two nested arrays -- the first of lines, the second of nodes
+     *  if no filled lines present at or after `start`, nodes array will be
+     *      empty and lines will have single number `l.length`
+     *  else if a filled line is found at or after `start`, all lines and nodes in path
+     *      - if the path forms a complete loop, then the start and end node will be the same
+     *
+     * @private
+     */
+    private compilePath(l: number[][], n: number[][], s: number[], start: number = 0): [number[], number[]] {
+
+        //  if 'start' is not a filled line, find the first filled line after it
+        if(!s[start]) {
+            let i: number = start;
+            for(; i < l.length; i++) {
+                if(s[i]) {
+                    start = i;
+                    break;
+                }
+            }
+        }
+        //  if no filled lines at or after 'start', return l.length
+        if(!s[start]) {
+            return [[l.length], []];
+        }
+
+        //  initialize variables used to traverse path
+        let c: number = start;          //  index of current line in sequence
+        let x: number = -1;             //  index of nEXt line in sequence (initialized to 'start')
+        let r: number = l[start][0];    //  index of "stARt" node of current line (in direction of path)
+        let e: number = l[start][1];    //  index of "end" node of current line (in direction of path)
+        let pl: number[] = [];          //  all lines in path
+        let pn: number[] = [r];         //  all nodes in path
+
+        //  follow sequential lines in path
+        //  add lines and nodes to 'pl' and 'pn'
+        //  return [[max line], []] if path ends
+        do {
+            //  add the current line and end node to the path
+            pl[pl.length] = c;
+            pn[pn.length] = e;
+
+            //  get the index of the current line in the end node
+            let i: number = 0;
+            for(; i < n[e].length; i++) {
+                if(n[e][i] === c) {
+                    break;
+                }
+            }
+            //  unexpected but just in case
+            if(i === n[e].length) {
+                throw new Error(`"current" l[${c}] = [${l[c].join()}] not found in "end" n[${e}] = [${n[e].join()}]`);
+            }
+
+            //  get the index of the next line
+            //  if end node n[e] is invalid, return path compiled so far
+            const [i_1, i_2]: [number, number] = [(i + 1) % 3, (i + 2) % 3];
+            if(s[n[e][i_1]] === s[n[e][i_2]]) {
+                //  node is invalid -- both opposing lines have matching states
+                return [pl, pn];
+            }
+            if(s[n[e][i_1]] === 1) {
+                x = n[e][i_1];
+            }
+            else if(s[n[e][i_2]] === 1) {
+                x = n[e][i_2];
+            }
+            else {
+                //  node is invalid -- single opposing line is empty
+                return [pl, pn];
+            }
+
+            //  advance the current node & line for the next iteration
+            r = e;
+            c = x;
+
+            //  get the index of the "end" (next) node
+            e = l[c][0] === r ? l[c][1] : l[c][0];
+        } while(x !== start)
+
+        //  after 'do...while' exits, valid loop is confirmed
+        //  associated lines and nodes are in 'p'
+        return [pl, pn];
     }
 
     /** check if the current game state is a valid solution
