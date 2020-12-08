@@ -247,6 +247,7 @@ class SlitherLinkGame {
                 //  otherwise, determine the next line to be incremented
                 if(pn[0] === pn[pn.length - 1] && pl.length === c) {
                     v = s.slice();
+                    SlitherLinkGame.validLoopStates.push(v.slice());
                     hiLine = 0;
                 }
                 else {
@@ -345,9 +346,6 @@ class SlitherLinkGame {
                     v = s.slice();
                     break;
                 }
-            }
-            if(v.length) {
-                SlitherLinkGame.validLoopStates.push(v.slice());
             }
         }
 
