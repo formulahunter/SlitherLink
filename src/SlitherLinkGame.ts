@@ -282,7 +282,7 @@ class SlitherLinkGame {
                             lr.length === 3 ? Math.min(lr[0], lr[1], lr[2]) : Math.min(lr[0], lr[1]),
                             le.length === 3 ? Math.min(le[0], le[1], le[2]) : Math.min(le[0], le[1])
                         ];      //  lowest-index line at start & end nodes, respectively
-                        if(rLo < eLo) {
+                        if(rLo > eLo) {
                             if(rLo > hiLine) {
                                 hiLine = rLo;
                             }
@@ -342,7 +342,7 @@ class SlitherLinkGame {
                     currentState = SlitherLinkGame.numStates - 1n;
 
                     //  ensure that the outer while loop continues to trigger final-state condition at top
-                    v = [];
+                    v = s.slice();
                     break;
                 }
             }
@@ -385,8 +385,8 @@ class SlitherLinkGame {
         this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, lines, nextState));
     }
 
-    /** find a complete loop and count the number of lines in it
-     *
+    /** get the entire path to which a given (filled) line belongs -- includes
+     * all associated lines and nodes, in order
      *
      * @param l - array of lines as indices of start & end nodes
      * @param n - array of nodes as indices of intersecting lines
@@ -418,62 +418,122 @@ class SlitherLinkGame {
             return [[l.length], []];
         }
 
-        //  initialize variables used to traverse path
-        let c: number = start;          //  index of current line in sequence
+        //  first get lines in path walking in "reverse" from 'start'
+        let [lrw, nrw]: [number[], number[]] = this.walkPath(l, n, s, start, l[start][0]);
+
+        //  initialize empty path arrays
+        //  values depend on result of reverse walk
+        let pl: number[] = [];
+        let pn: number[] = [];
+
+        if(nrw[nrw.length - 1] === l[start][1]) {
+            //  if reverse walk confirmed a closed loop: reverse & copy into
+            //  path arrays, prepend with 'start' line & node, and return
+            pl[0] = start;
+            pn[0] = l[start][0];
+            for(let i = lrw.length - 1; i >= 0; i--) {
+                pl[pl.length] = lrw[i];
+                pn[pn.length] = nrw[i + 1];
+            }
+            pn[pn.length] = nrw[0]; //  count of nodes always count of lines + 1
+            return [pl, pn];
+        }
+
+        //  reverse walk reached an invalid node: reverse & copy into path
+        //  arrays, insert 'start' line, and append results of forward walk
+        for(let i = lrw.length - 1; i >= 0; i--) {
+            pl[pl.length] = lrw[i];
+            pn[pn.length] = nrw[i + 1];
+        }
+        pn[pn.length] = nrw[0];     //  node count always line count + 1
+        pl[pl.length] = start;      //  'start' not included in walkPath() results
+
+        //  also walk path in forward direction
+        let [lfw, nfw]: [number[], number[]] = this.walkPath(l, n, s, start, l[start][1]);
+        for(let i = 0; i < lfw.length; i++) {
+            pl[pl.length] = lfw[i];
+            pn[pn.length] = nfw[i];
+        }
+        pn[pn.length] = nfw[nfw.length - 1];    //  node count always line count + 1
+
+        return [pl, pn];
+    }
+
+    /** walk the path containing `line` in the direction indicated and record
+     * all associated lines and nodes, in order
+     *
+     * @param l - array of all lines
+     * @param n - array of all nodes
+     * @param s - array of line states corresponding to lines in `l`
+     * @param line - the line at which to start walking
+     * @param e - the "end" node of `line` indicating which direction to walk (toward `e`)
+     *
+     * @return nested arrays of all lines and nodes, including `e` but not `line`
+     *      if no path exists in the given direction beyond 'line', the returned nodes array will contain a single node,
+     *      the given "end" node `e`, and the returned lines array will be empty
+     *      a closed loop is confirmed if the final node in the nodes array is the same node as the one opposing the
+     *      "end" node 'e' of 'line', i.e. its "start" node
+     *
+     * @private
+     */
+    private walkPath(l: number[][], n: number[][], s: number[], line: number, e: number): [number[], number[]] {
+
+        //  initialize variables used to walk path
+        //  note that r, c, and e are added to the path arrays manually,
+        //  not in the loop -- this means that using the same loop
+        //  structure for the forward walk will not add duplicate references
+        let c: number = line;           //  index of current line in sequence
         let x: number = -1;             //  index of nEXt line in sequence (initialized to 'start')
-        let r: number = l[start][0];    //  index of "stARt" node of current line (in direction of path)
-        let e: number = l[start][1];    //  index of "end" node of current line (in direction of path)
-        let pl: number[] = [];          //  all lines in path
-        let pn: number[] = [r];         //  all nodes in path
+        let pl: number[] = [];          //  all lines in forward walk
+        let pn: number[] = [e];         //  all nodes in forward walk
+        let r: number;                  //  index of "stARt" node of current line (in direction of path)
+        if(e === l[line][0]) {
+            r = l[line][1];
+        }
+        else {
+            r = l[line][0];
+        }
+        const startNode: number = r;    //  persistent copy of 'r'
 
-        //  follow sequential lines in path
-        //  add lines and nodes to 'pl' and 'pn'
-        //  return [[max line], []] if path ends
-        do {
-            //  add the current line and end node to the path
-            pl[pl.length] = c;
-            pn[pn.length] = e;
-
-            //  get the index of the current line in the end node
+        //  walk path until an invalid node is reached or a closed loop is confirmed
+        while(e !== startNode) {
+            //  get the index of this line to determine the opposing lines
             let i: number = 0;
             for(; i < n[e].length; i++) {
                 if(n[e][i] === c) {
                     break;
                 }
             }
-            //  unexpected but just in case
-            if(i === n[e].length) {
-                throw new Error(`"current" l[${c}] = [${l[c].join()}] not found in "end" n[${e}] = [${n[e].join()}]`);
-            }
-
-            //  get the index of the next line
-            //  if end node n[e] is invalid, return path compiled so far
             const [i_1, i_2]: [number, number] = [(i + 1) % 3, (i + 2) % 3];
+
+            //  get the index of the "next" line
+            //  reverse walk is complete if current end node is invalid
             if(s[n[e][i_1]] === s[n[e][i_2]]) {
-                //  node is invalid -- both opposing lines have matching states
-                return [pl, pn];
+                break;
             }
-            if(s[n[e][i_1]] === 1) {
+            else if(s[n[e][i_1]] === 1) {
                 x = n[e][i_1];
             }
             else if(s[n[e][i_2]] === 1) {
                 x = n[e][i_2];
             }
             else {
-                //  node is invalid -- single opposing line is empty
-                return [pl, pn];
+                break;
             }
+            pl[pl.length] = x;
 
-            //  advance the current node & line for the next iteration
+            //  find the new end node
             r = e;
             c = x;
+            if(l[c][0] === r) {
+                e = l[c][1];
+            }
+            else {
+                e = l[c][0];
+            }
+            pn[pn.length] = e;
+        }
 
-            //  get the index of the "end" (next) node
-            e = l[c][0] === r ? l[c][1] : l[c][0];
-        } while(x !== start)
-
-        //  after 'do...while' exits, valid loop is confirmed
-        //  associated lines and nodes are in 'p'
         return [pl, pn];
     }
 
