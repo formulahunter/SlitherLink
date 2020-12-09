@@ -171,7 +171,7 @@ class SlitherLinkGame {
         SlitherLinkGame.stateProgress = Number(1000n * (SlitherLinkGame.initialState + 1n) / SlitherLinkGame.numStates);
 
         const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
-        console.log(`starting simulation with state ${(SlitherLinkGame.initialState)}\n${percent}% %cof ${SlitherLinkGame.numStates}`, 'color: #888888');
+        console.log(`starting simulation with state ${addCommas(SlitherLinkGame.initialState.toString())}\n${percent}% %cof ${(SlitherLinkGame.numStates.toString())}`, 'color: #888888');
         console.info('%csimulation will not stop itself\n%cclick on the canvas to pause/resume', 'color: #e0e0a0; background-color: #606040;', 'color: #888888; background-color: unset;');
 
         this.simTimeout = window.setTimeout(this.drawComboFrame.bind(this, this.lines, SlitherLinkGame.initialState), 0);
@@ -218,7 +218,7 @@ class SlitherLinkGame {
                 this.logCurrentRun(currentState - this.startState, (performance.now() - this.startTime) / 1000)
                 this.saveProgress(SlitherLinkGame.resumeState);
                 console.log('%call states checked', 'color: #a0e0a0; background-color: #406040;');
-                console.info(`${SlitherLinkGame.validLoopStates.length} valid states counted`);
+                console.info(`${addCommas(SlitherLinkGame.validLoopStates.length.toString())} valid states counted`);
                 this.setState(currentState, lines);
                 this.draw(400, 300);
                 return;
@@ -316,7 +316,7 @@ class SlitherLinkGame {
                 //  record high bit to check "overflow" condition after 's' loops
                 let overflow = s[s.length - 1];
 
-                //  advance 's' to the next (potentially) valid state
+                //  advance 's' and 'currentState' to the next (potentially) valid state
                 //  skip any states in which a currently invalid node would remain invalid
                 //  if all nodes are valid, just advance the lowest-index line's state
                 let i = 0;
@@ -330,6 +330,9 @@ class SlitherLinkGame {
                     }
                     s[i] = 0;
                 }
+                //  advance 'currentState' accordingly
+                const shift = BigInt(hiLine);
+                currentState += ((currentState >> shift) + 1n) << shift;
 
                 //  if the high bit changes from 1 to 0, the final state has been reached
                 if(s[s.length - 1] === 0 && overflow === 1) {
@@ -355,6 +358,9 @@ class SlitherLinkGame {
         for(let i = s.length - 1; i >= 0; i--) {
             currentState = (currentState << 1n) + BigInt(v[i]);
             nextState = (nextState << 1n) + BigInt(s[i]);
+        }
+        if(SlitherLinkGame.validLoopStates[SlitherLinkGame.validLoopStates.length - 1] === v) {
+            console.log(`valid state ${addCommas(currentState.toString())}`);
         }
 
         //  state must be set to change what gets animated by draw()
@@ -861,8 +867,8 @@ class SlitherLinkGame {
         this.simTimeout = 0;
         let progress: number = Number(1000n * SlitherLinkGame.resumeState / SlitherLinkGame.numStates);
         let percent = `${(Number(progress) / 10).toFixed(2)}%`;
-        console.log(`paused after ${SlitherLinkGame.resumeState} states (${percent})`);
-        console.info(`%cnext state to compute is ${SlitherLinkGame.resumeState} `, 'color: #888888;');
+        console.log(`paused after ${addCommas(SlitherLinkGame.resumeState.toString())} states (${percent})`);
+        console.info(`%cnext state to compute is ${addCommas(SlitherLinkGame.resumeState.toString())} `, 'color: #888888;');
     }
     //  start/resume the simulation if it is currently paused
     resumeSimulation(): void {
@@ -930,15 +936,15 @@ class SlitherLinkGame {
         SlitherLinkGame.stateProgress = Number(1000n * (statesChecked + 1n) / SlitherLinkGame.numStates);
 
         const percent = (SlitherLinkGame.stateProgress / 10).toFixed(2);
-        console.log(`${statesChecked} states checked\n${percent}% %cof ${SlitherLinkGame.numStates} states`, 'color: #888888;');
+        console.log(`${addCommas(statesChecked.toString())} states checked\n${percent}% %cof ${addCommas(SlitherLinkGame.numStates.toString())} states`, 'color: #888888;');
         SlitherLinkGame.nextLog = currentTime + SlitherLinkGame.logPeriod;
     }
     /** log stats of current simulation run (since started/resumed) */
     logCurrentRun(elapsedStates: bigint, elapsedTime: DOMHighResTimeStamp = (performance.now() - this.startTime) / 1000, invalids?: number): void {
         const avg = Number(elapsedStates) / elapsedTime;   //  convert ms to seconds (cast BigInts back to Numbers to preserve sigfigs that would otherwise be lost to rounding)
-        console.info(`current run: ${avg.toFixed(1)} states/s\n%c${elapsedStates} states in ${(elapsedTime).toFixed(3)}s`, 'color: #888888;');
+        console.info(`current run: ${addCommas(avg.toFixed(1))} states/s\n%c${addCommas(elapsedStates.toString())} states in ${addCommas((elapsedTime).toFixed(3))}s`, 'color: #888888;');
         if(invalids !== undefined) {
-            console.debug(`%cskipped checking ${invalids} invalid states`, 'color: #888888');
+            console.debug(`%cskipped checking ${addCommas(invalids.toString())} invalid states`, 'color: #888888');
         }
     }
     /** save current progress to server */
@@ -995,6 +1001,19 @@ class SlitherLinkGame {
             lineMask <<= 1n;
         }
     }
+}
+function addCommas(num: string): string {
+    let d = 0;
+    for(; d < num.length; d++) {
+        if(num[d] === '.') {
+            break;
+        }
+    }
+    let str = num;
+    for(let i = d - 3; i >= 0; i -= 3) {
+        str = str.slice(0, i) + ',' + str.slice(i);
+    }
+    return str;
 }
 
 export default SlitherLinkGame;
