@@ -4,6 +4,9 @@
 #  Ignore npm/node package directory - dependencies given in package.json
 node_modules/*
 
+#  Ignore TypeScript build info file
+.tsBuildInfo
+
 # Ignore TypeScript build directory - can be reconstructed given tsconfig file
 lib/
 

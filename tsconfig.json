@@ -13,6 +13,9 @@
 		"rootDir": "src",
 		"outDir": "lib",
 
+		"incremental": true,
+		"tsBuildInfoFile": "./.tsBuildInfo",
+
 		"strict": true,
 		"alwaysStrict": true,
 		"strictFunctionTypes": true,
