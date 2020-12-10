@@ -52,7 +52,7 @@ class SlitherLinkGame {
     private readonly ctx: CanvasRenderingContext2D;
 
     //  line or cell below the mouse, if any
-    private mouse: Cell | Line | null = null;
+    private mouse: Line | null = null;
 
     //  size parameters
     //  distance (in cell count) from center to corner cell
@@ -811,20 +811,6 @@ class SlitherLinkGame {
             }
         }
 
-        //  if no line identified, check if the mouse is over a cell
-        //  there is probably a better way to do this - shouldn't have to loop
-        //  over so many cells each time mousemove fires (which can easily
-        //  happen dozens of times per second)
-        if(!this.mouse) {
-            for(let i = 0; i < this.cells.length; i++) {
-                this.cells[i].mouse = this.ctx.isPointInStroke(this.cells[i].getPath(), x, y);
-                if(this.cells[i].mouse) {
-                    this.mouse = this.cells[i];
-                }
-            }
-        }
-
-
         this.ctx.resetTransform();
 
         //  redraw the board
@@ -893,35 +879,43 @@ class SlitherLinkGame {
         ctx.lineWidth = 1;
 
         //  set font size & alignment so that cell numbers align correctly
-        ctx.font = '16px sans-serif';
+        ctx.font = `24px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = CSSColor.black;
 
-        //  pass the drawing context to each cell to draw their outlines and
-        //  counts
-        //  identify the cell beneath the mouse
-        // let hover: Cell | null = null;
+        //  print each cell's count, if defined
+        ctx.save();
         for(let i = 0; i < this.cells.length; ++i) {
-            this.cells[i].draw(ctx);
+            const count = this.cells[i].count;
+            if(count !== null) {
+                //  not sure why but characters look just a hair too high when drawn
+                //  at cell.y, so adding 1 to lower them
+                ctx.fillText(count.toString(), this.cells[i].x, this.cells[i].y + 1, Cell.RADIUS);
+            }
         }
+        ctx.restore();
+
+        //  draw each line, accounting for its state and mouse presence
+        ctx.save();
+        ctx.lineWidth = Line.WIDTH;
+        for(let i = 0; i < this.lines.length; i++) {
+            if(this.lines[i].state === LineState.LINE) {
+                ctx.strokeStyle = CSSColor.black;
+            }
+            else {
+                ctx.strokeStyle = CSSColor.lightgray;
+            }
+            ctx.stroke(this.lines[i].path);
+        }
+        ctx.restore();
 
         //  if the mouse is above a line, draw it wider
-        if(this.mouse instanceof Cell) {
-            // ctx.save();
-            //
-            // //  highlight neighbors
-            // ctx.fillStyle = CSSColor.lightgreen;
-            // for(let i = 0; i < 6; ++i) {
-            //     this.mouse.getNeighbor(this.mouse.lines[i])?.draw(ctx, i.toString());
-            // }
-            // ctx.restore();
-        }
-        else if(this.mouse instanceof Line) {
+        if(this.mouse) {
             ctx.save();
 
             //  highlight the line below the mouse
-            ctx.lineWidth = 5;
+            ctx.lineWidth = Line.HOVER_WIDTH;
             ctx.lineCap = 'round';
             if(this.mouse.state === LineState.LINE) {
                 ctx.strokeStyle = CSSColor.black;
@@ -932,6 +926,20 @@ class SlitherLinkGame {
             ctx.stroke(this.mouse.path);
             ctx.restore();
         }
+
+        //  mark each node as valid or invalid
+        ctx.save();
+        for(let i = 0; i < this.nodes.length; i++) {
+            const c = this.nodes[i].filledCount;
+            if(c === 0 || c === 2) {
+                ctx.fillStyle = CSSColor.green;
+            }
+            else {
+                ctx.fillStyle = CSSColor.red;
+            }
+            ctx.fill(this.nodes[i].path);
+        }
+        ctx.restore();
 
         //  reset the transform
         ctx.resetTransform();

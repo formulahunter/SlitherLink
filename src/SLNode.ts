@@ -4,14 +4,19 @@ import Line, {LineState} from './Line.js';
 
 class SLNode {
 
+    static readonly RADIUS: number = 6;
+
     coords: [number, number];
 
     dir?: 0 | 1;     //  0 if vertical line points up, 1 if down
     lines: Line[] = [];  //  a node is the intersection
     cells: Cell[] = [];
 
+    path: Path2D = new Path2D;
+
     constructor(x: number, y: number) {
         this.coords = [x, y];
+        this.path.arc(x, y, SLNode.RADIUS, 0, 2 * Math.PI);
     }
 
     addLine(line: Line): void {
@@ -25,10 +30,12 @@ class SLNode {
         }
     }
 
-    countFilled(): number {
-        return this.lines.filter(line =>
-            line !== null && line.proven
-        ).length;
+    get filledCount(): number {
+        let c = 0;
+        for(let i = 0; i < this.lines.length; i++) {
+            c += this.lines[i].state;
+        }
+        return c;
     }
 
     /** get lines opposing the given 'refLine', regardless of state */

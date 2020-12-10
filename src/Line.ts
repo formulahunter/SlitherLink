@@ -9,6 +9,10 @@ enum LineState {
     LINE  = 0b001
 }
 class Line {
+
+    static WIDTH: number = 5;
+    static HOVER_WIDTH: number = 8;
+
     readonly json: line_json
     nodes: [SLNode, SLNode];
     ownNodes: [SLNode | null, SLNode | null] = [null, null];
@@ -57,8 +61,8 @@ class Line {
         else {
             xs[1] = this.nodes[0].x;
         }
-        if(Math.abs(xs[0] - xs[1]) < 5) {
-            xs = [xs[1] - 5, xs[0] + 5];
+        if(Math.abs(xs[0] - xs[1]) < Line.HOVER_WIDTH) {
+            xs = [xs[1] - Line.HOVER_WIDTH, xs[0] + Line.HOVER_WIDTH];
         }
         let ys: [number, number] = [Math.min(this.nodes[0].y, this.nodes[1].y), 0];
         if(ys[0] === this.nodes[0].y) {

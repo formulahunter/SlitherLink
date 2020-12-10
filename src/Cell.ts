@@ -1,5 +1,4 @@
-import CSSColor from './CSSColor.js';
-import Line, { LineState } from './Line.js';
+import Line  from './Line.js';
 import SLNode from './SLNode.js';
 import { cell_json } from './types.js';
 
@@ -7,7 +6,7 @@ import { cell_json } from './types.js';
 class Cell {
 
     //  radius from center to "corner"
-    static RADIUS = 30;
+    static RADIUS = 50;
 
     //  dx, dy increments between cell nodes for hexagonal cells composed of
     //  equilateral triangles with sides of length Cell.RADIUS
@@ -47,10 +46,6 @@ class Cell {
     ownLines: (Line | null)[] = [null, null, null, null, null, null];
     nodes: SLNode[] = [];
     ownNodes: (SLNode | null)[] = [null, null, null, null, null, null];
-
-    //  true while the mouse is above this specific cell
-    mouse: boolean = false;
-    private _path: Path2D | null = null;
 
     constructor(x: number, y: number, json: cell_json, lineRefs: (Line | null)[], nodeRefs: (SLNode | null)[]) {
 
@@ -125,67 +120,6 @@ class Cell {
             return line.cells[1];
         }
         return cell0;
-    }
-
-    draw(ctx: CanvasRenderingContext2D, text?: string): void {
-
-        let path: Path2D = this.getPath();
-
-        //  highlight the cell under the mouse
-        if(this.mouse) {
-            //  save() and restore() ensure that the fill color is reverted to
-            //  its previous value
-            ctx.save();
-            ctx.fillStyle = CSSColor.green;
-            ctx.fill(path);
-            ctx.restore();
-        }
-        else if(ctx.fillStyle === CSSColor.lightgreen) {
-            ctx.fill(path);
-        }
-
-        //  draw each line depending on its state
-        ctx.save();
-        for(let i = 0; i < this.lines.length; i++) {
-            if(this.lines[i].state === LineState.LINE) {
-                ctx.strokeStyle = CSSColor.black;
-            }
-            else {
-                ctx.strokeStyle = CSSColor.lightgray;
-            }
-            ctx.stroke(this.lines[i].path);
-        }
-        ctx.restore();
-
-        //  print text centered in the cell if it has a count constraint
-        // if(this.count !== null) {
-        if(text !== undefined) {
-            ctx.save();
-            ctx.fillStyle = CSSColor.black;
-            // ctx.beginPath();
-            //  not sure why but characters look just a hair too high when drawn
-            //  at this.y, so adding 1 to lower them
-            // ctx.fillText(this.count.toString(), this.x, this.y + 1, Cell.RADIUS);
-            ctx.fillText(text, this.x, this.y + 1, Cell.RADIUS);
-            ctx.restore();
-        }
-    }
-    getPath(): Path2D {
-
-        if(this._path !== null) {
-            return this._path;
-        }
-
-        let path: Path2D = new Path2D();
-        path.moveTo(...this.nodes[0].coords);
-        for(let i = 1; i <= this.nodes.length; i++) {
-            path.lineTo(...this.nodes[i % 6].coords);
-        }
-        path.closePath();
-
-        this._path = path;
-
-        return path;
     }
 }
 
