@@ -10,7 +10,7 @@ enum LineState {
 }
 class Line {
 
-    static WIDTH: number = 5;
+    static WIDTH: number = 4;
     static HOVER_WIDTH: number = 8;
 
     readonly json: line_json
@@ -28,6 +28,10 @@ class Line {
      *  because it points right for the other; see explanation of "sides" above)
      */
     cells: Cell[] = [];
+
+    /** a line is asserted if it has been manually set, or if its state is fixed
+     * by either of its nodes */
+    asserted: boolean = false;
 
     bb: [[number, number], [number, number]];
     path: Path2D = new Path2D;
@@ -101,6 +105,46 @@ class Line {
     }
     set state(state: LineState) {
         this.json.state = state;
+    }
+
+    /** fill this line, assert it, and return whether or not this changed
+     * anything */
+    fill(): boolean {
+        if(!this.asserted || !this.state) {
+            this.state = 1;
+            this.asserted = true;
+            return true;
+        }
+        return false;
+    }
+    /** empty this line, assert it, and return whether or not this changed
+     * anything */
+    empty(): boolean {
+        if(!this.asserted || this.state) {
+            this.state = 0;
+            this.asserted = true;
+            return true;
+        }
+        return false;
+    }
+    /** toggle this line's state and assert it (return true because this method
+     * changes the line's state by definition */
+    toggle(): true {
+        if(this.state) {
+            this.empty();
+        }
+        else {
+            this.fill();
+        }
+        return true;
+    }
+    /** de-assert this line and return whether or not this changed anything */
+    unset(): boolean {
+        if(this.asserted) {
+            this.asserted = false;
+            return true;
+        }
+        return false;
     }
 
     get proven(): number {

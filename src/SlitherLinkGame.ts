@@ -103,6 +103,8 @@ class SlitherLinkGame {
         //  define event listeners on canvas element
         canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
+        canvas.addEventListener('auxclick', this.handleAuxClick.bind(this));
+        canvas.addEventListener('contextmenu', this.handleContextMenu.bind(this));
 
         // this.canvas = canvas;
         let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
@@ -820,14 +822,39 @@ class SlitherLinkGame {
         this.draw(400, 300);
     }
     //  manually save the current state on alt-click, otherwise pause/resume the simulation
-    handleClick(): void {
+    handleClick(ev: MouseEvent): void {
 
-        //  if the mouse is over a line, toggle its state
-        if(this.mouse instanceof Line) {
-            this.mouse.state = 1 - this.mouse.state;
+        //  if the mouse is over a line, set the line's state and/or assertion
+        if(this.mouse) {
+            //  middle click always de-asserts a line
+            //
+            //  right click fills and left click empties, unless the line
+            //  already has that state, in which case it is de-asserted
+            if(!this.mouse.asserted) {
+                if(ev.button === 2) {
+                    this.mouse.empty();
+                }
+                else if(ev.button === 0) {
+                    this.mouse.fill();
+                }
+            }
+            else if(ev.button === 1 || (ev.button && !this.mouse.state) || (this.mouse.state && !ev.button)) {
+                this.mouse.unset();
+            }
+            else {
+                this.mouse.toggle();
+            }
+            this.draw(400, 300);
         }
-        this.draw(400, 300);
     }
+    handleAuxClick(ev: MouseEvent): void {
+        ev.preventDefault();
+        this.handleClick(ev);
+    }
+    handleContextMenu(ev: MouseEvent): void {
+        ev.preventDefault();
+    }
+
     //  pause the simulation if it is currently running, otherwise resume it
     toggleSimulation(): void {
         if(this.simTimeout) {
@@ -899,12 +926,20 @@ class SlitherLinkGame {
         //  draw each line, accounting for its state and mouse presence
         ctx.save();
         ctx.lineWidth = Line.WIDTH;
+        const dash = [Cell.RADIUS / 7];
         for(let i = 0; i < this.lines.length; i++) {
-            if(this.lines[i].state === LineState.LINE) {
-                ctx.strokeStyle = CSSColor.black;
+            if(!this.lines[i].asserted) {
+                ctx.strokeStyle = CSSColor.gray;
+                ctx.setLineDash(dash);
             }
             else {
-                ctx.strokeStyle = CSSColor.lightgray;
+                if(this.lines[i].state === LineState.LINE) {
+                    ctx.strokeStyle = CSSColor.black;
+                }
+                else {
+                    ctx.strokeStyle = CSSColor.lightgray;
+                }
+                ctx.setLineDash([]);
             }
             ctx.stroke(this.lines[i].path);
         }

@@ -33,6 +33,10 @@ class SLNode {
     get filledCount(): number {
         let c = 0;
         for(let i = 0; i < this.lines.length; i++) {
+            //  a node may always be valid if it has at least 1 unset line
+            if(!this.lines[i].asserted) {
+                return 0;
+            }
             c += this.lines[i].state;
         }
         return c;
