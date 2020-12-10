@@ -97,29 +97,6 @@ class Cell {
             }
             this.nodes[i].addCell(this);
         }
-
-        // //  assign a count to ~1/3 of all cells
-        // if(Math.random() > 2 / 3) {
-        //     this.count = Math.floor(6 * Math.random());
-        // }
-    }
-
-    getNeighbor(line: number | Line): Cell | null {
-        if(typeof line === 'number') {
-            line = this.lines[line];
-        }
-        else if(!this.lines.includes(line)) {
-            console.error('line %o does not lie on cell %o', line, this);
-            throw new Error('line does not lie on this cell');
-        }
-
-        //  each line is associated with two cells
-        //  return the other one (not the one this method was called on)
-        const cell0 = line.cells[0];
-        if(cell0 === this) {
-            return line.cells[1];
-        }
-        return cell0;
     }
 }
 

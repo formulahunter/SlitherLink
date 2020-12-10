@@ -82,24 +82,6 @@ class Line {
         this.path.lineTo(...this.nodes[1].coords);
     }
 
-    draw(ctx: CanvasRenderingContext2D): void {
-
-        ctx.save();
-        // if(this.proven) {
-        //     ctx.strokeStyle = CSSColor.black;
-        // }
-        // else {
-        //     ctx.strokeStyle = CSSColor.lightgray;
-        // }
-
-        ctx.beginPath();
-        ctx.moveTo(this.start.x, this.start.y);
-        ctx.lineTo(this.end.x, this.end.y);
-        ctx.stroke();
-
-        ctx.restore();
-    }
-
     get state(): LineState {
         return this.json.state;
     }
@@ -145,55 +127,6 @@ class Line {
             return true;
         }
         return false;
-    }
-
-    get proven(): number {
-        return this.state & LineState.LINE;
-    }
-    get disproven(): number {
-        return this.state & LineState.BLANK;
-    }
-    get indet(): number {
-        return this.state & LineState.INDET;
-    }
-
-    /** Given a refNode, get the opposite node */
-    getOppositeNode(refNode: SLNode) {
-        return this.nodes[1 - this.nodes.indexOf(refNode)];
-    }
-
-    get start(): SLNode {
-        return this.nodes[0];
-    }
-    set start(start: SLNode) {
-        this.nodes[0] = start;
-    }
-
-    get end(): SLNode {
-        return this.nodes[1];
-    }
-    set end(end: SLNode) {
-        this.nodes[1] = end;
-    }
-
-
-
-    /* The 'inside' cell is the cell on the inside of the curve followed when
-       tracing the hexagon clockwise; from the start node looking toward the
-        end node, it is on the right side
-     */
-    get inside(): Cell {
-        return this.cells[0];
-    }
-    set inside(inside: Cell) {
-        this.cells[0] = inside;
-    }
-
-    get outside(): Cell {
-        return this.cells[1];
-    }
-    set outside(outside: Cell) {
-        this.cells[1] = outside;
     }
 
     addCell(cell: Cell) {
