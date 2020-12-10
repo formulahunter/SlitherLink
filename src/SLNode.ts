@@ -1,7 +1,7 @@
 import Cell from './Cell.js';
 import Line, { LineState } from './Line.js';
 
-
+let depth: number = 0;
 class SLNode {
 
     static readonly RADIUS: number = 6;
@@ -41,7 +41,7 @@ class SLNode {
     get filledCount(): number {
         let c = 0;
         for(let i = 0; i < this.lines.length; i++) {
-            if(this.lines[i].state) {
+            if(this.lines[i].asserted && this.lines[i].state) {
                 c++;
             }
         }
@@ -64,6 +64,10 @@ class SLNode {
     }
 
     updateDoF() {
+        depth++;
+        if(depth > 30) {
+            throw new Error('too much recursion');
+        }
 
         //  record the changed line and its resulting state
         // this.updateOrigin = instigator;
@@ -85,7 +89,16 @@ class SLNode {
             else {
                 this.lines[i].empty();
             }
+
+            //  propagate changes to the newly asserted line's opposite node
+            if(this.lines[i].nodes[0] === this) {
+                this.lines[i].nodes[1].updateDoF();
+            }
+            else {
+                this.lines[i].nodes[0].updateDoF();
+            }
         }
+        depth--;
     }
 
     /** get lines opposing the given 'refLine', regardless of state */
