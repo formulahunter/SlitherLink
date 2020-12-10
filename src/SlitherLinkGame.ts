@@ -8,33 +8,6 @@ import { cell_json, hex_dirs, make_stem_cell } from './types.js';
 //@ts-ignore: TS6133: 'up_op' is declared but its value is never read.
 const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
 
-//  get an integer whose binary form indicates the bits that changed when the argument was incremented to its
-//  current value
-function getBitsChanged(s: bigint): bigint {
-    //  previous value of s
-    const s_1 = s - 1n;
-    //  true for each bit that changed from 0 -> 1 or 1 -> 0; this will include the highest-order changed bit
-    //  and, incidentally, every lower-order bit
-    return ~( (s & s_1) | ~(s | s_1) );
-}
-//  get the index of the highest-order line whose state will be changed next time 'currentState' is incremented
-const shift: bigint = 1n;
-//  get the base-2 magnitude (effectively the position of the highest-order bit) of the change when 'state'
-//  was incremented from its previous values
-function getChangeMagnitudeBase2(state: bigint): number {
-    let magnitude: bigint = getBitsChanged(state);
-    let i = -1;
-    while(magnitude) {
-        magnitude >>= shift;
-        i++;
-    }
-    return i;
-}
-//  return 1 if the given line is filled in 'state', otherwise return 0
-function getLineState(lineIndex: number, state: bigint): (1 | 0) {
-    return state & 1n << BigInt(lineIndex) ? 1 : 0;
-}
-
 
 let invalidCount: number = -1;
 class SlitherLinkGame {
@@ -72,14 +45,14 @@ class SlitherLinkGame {
     static logPeriod: number = 15 * 1000;   //  milliseconds between log messages
     static nextLog: DOMHighResTimeStamp = 0;
 
-    //  generator object for stepping through solution algorithm
-    simGen: Generator<void, void, void> | null = null;
-
     //  states with at least 1 valid loop
     static validLoopStates: LineState[][] = [];
 
     // private canvas: HTMLCanvasElement;
     private readonly ctx: CanvasRenderingContext2D;
+
+    //  line or cell below the mouse, if any
+    private mouse: Line | null = null;
 
     //  size parameters
     //  distance (in cell count) from center to corner cell
@@ -130,6 +103,8 @@ class SlitherLinkGame {
         //  define event listeners on canvas element
         canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
+        canvas.addEventListener('auxclick', this.handleAuxClick.bind(this));
+        canvas.addEventListener('contextmenu', this.handleContextMenu.bind(this));
 
         // this.canvas = canvas;
         let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
@@ -815,15 +790,29 @@ class SlitherLinkGame {
         let x: number = ev.clientX - ev.target.offsetLeft - window.scrollX;
         let y: number = ev.clientY - ev.target.offsetTop - window.scrollY;
 
-        //  identify the cell under the mouse, if any
-        //  there is probably a better way to do this - shouldn't have to loop
-        //  over so many cells each time mousemove fires (which can easily
-        //  happen dozens of times per second)
         this.ctx.translate(400, 300);
         this.ctx.translate(-this.radius * Cell.DX * 2, 0);
-        for(let i = 0; i < this.cells.length; i++) {
-            this.cells[i].mouse = this.ctx.isPointInPath(this.cells[i].getPath(), x, y);
+
+        //  set the drawing context's stroke wide for checking mouse position
+        this.ctx.lineWidth = 5;
+
+        //  apply current transform to mouse coords (i.e. convert mouse
+        //  coords to ctx coords)
+        const t = this.ctx.getTransform();
+        const [xm, ym] = [(ev.offsetX - t.e) / t.a, (ev.offsetY - t.f) / t.d];
+
+        //  check if the mouse is over a line
+        this.mouse = null;
+        for(let i = 0; i < this.lines.length; i++) {
+            let bb = this.lines[i].bb;
+            if(xm >= bb[0][0] && xm <= bb[0][1] && ym >= bb[1][0] && ym <= bb[1][1]) {
+                if(this.ctx.isPointInStroke(this.lines[i].path, x, y)) {
+                    this.mouse = this.lines[i];
+                    break;
+                }
+            }
         }
+
         this.ctx.resetTransform();
 
         //  redraw the board
@@ -835,19 +824,37 @@ class SlitherLinkGame {
     //  manually save the current state on alt-click, otherwise pause/resume the simulation
     handleClick(ev: MouseEvent): void {
 
-        //  alt+click => log progress but don't pause the sim
-        if(ev.altKey) {
-            this.saveProgress();
-            return;
+        //  if the mouse is over a line, set the line's state and/or assertion
+        if(this.mouse) {
+            //  middle click always de-asserts a line
+            //
+            //  right click fills and left click empties, unless the line
+            //  already has that state, in which case it is de-asserted
+            if(!this.mouse.asserted) {
+                if(ev.button === 2) {
+                    this.mouse.empty();
+                }
+                else if(ev.button === 0) {
+                    this.mouse.fill();
+                }
+            }
+            else if(ev.button === 1 || (ev.button && !this.mouse.state) || (this.mouse.state && !ev.button)) {
+                this.mouse.unset();
+            }
+            else {
+                this.mouse.toggle();
+            }
+            this.draw(400, 300);
         }
-
-        //  log current progress
-        this.logProgress(SlitherLinkGame.resumeState);
-        this.logCurrentRun(SlitherLinkGame.resumeState);
-
-        //  pause/resume simulation
-        this.toggleSimulation();
     }
+    handleAuxClick(ev: MouseEvent): void {
+        ev.preventDefault();
+        this.handleClick(ev);
+    }
+    handleContextMenu(ev: MouseEvent): void {
+        ev.preventDefault();
+    }
+
     //  pause the simulation if it is currently running, otherwise resume it
     toggleSimulation(): void {
         if(this.simTimeout) {
@@ -899,33 +906,69 @@ class SlitherLinkGame {
         ctx.lineWidth = 1;
 
         //  set font size & alignment so that cell numbers align correctly
-        ctx.font = '16px sans-serif';
+        ctx.font = `24px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = CSSColor.black;
 
-        //  pass the drawing context to each cell to draw their outlines and
-        //  counts
-        //  identify the cell beneath the mouse
-        // let hover: Cell | null = null;
+        //  print each cell's count, if defined
+        ctx.save();
         for(let i = 0; i < this.cells.length; ++i) {
-            this.cells[i].draw(ctx);
-            // if(this.cells[i].mouse) {
-            //     hover = this.cells[i];
-            // }
+            const count = this.cells[i].count;
+            if(count !== null) {
+                //  not sure why but characters look just a hair too high when drawn
+                //  at cell.y, so adding 1 to lower them
+                ctx.fillText(count.toString(), this.cells[i].x, this.cells[i].y + 1, Cell.RADIUS);
+            }
+        }
+        ctx.restore();
+
+        //  draw each line, accounting for its state and mouse presence
+        ctx.save();
+        ctx.lineWidth = Line.WIDTH;
+        const dash = [Cell.RADIUS / 7];
+        for(let i = 0; i < this.lines.length; i++) {
+            if(!this.lines[i].asserted) {
+                ctx.strokeStyle = CSSColor.gray;
+                ctx.setLineDash(dash);
+            }
+            else {
+                if(this.lines[i].state === LineState.LINE) {
+                    ctx.strokeStyle = CSSColor.black;
+                }
+                else {
+                    ctx.strokeStyle = CSSColor.lightgray;
+                }
+                ctx.setLineDash([]);
+            }
+            ctx.stroke(this.lines[i].path);
+        }
+        ctx.restore();
+
+        //  if the mouse is above a line, draw it wider
+        if(this.mouse) {
+            ctx.save();
+
+            //  highlight the line below the mouse
+            ctx.lineWidth = Line.HOVER_WIDTH;
+            ctx.lineCap = 'round';
+            if(this.mouse.state === LineState.LINE) {
+                ctx.strokeStyle = CSSColor.black;
+            }
+            else {
+                ctx.strokeStyle = CSSColor.lightgray;
+            }
+            ctx.stroke(this.mouse.path);
+            ctx.restore();
         }
 
-        //  highlight the neighbors of the highlighted cell
-        // if(hover !== null) {
-        //     ctx.save();
-        //
-        //     //  highlight neighbors
-        //     ctx.fillStyle = CSSColor.lightgreen;
-        //     for(let i = 0; i < 6; ++i) {
-        //         hover.getNeighbor(hover.lines[i])?.draw(ctx, i.toString());
-        //     }
-        //     ctx.restore();
-        // }
+        //  draw nodes
+        ctx.save();
+        ctx.fillStyle = CSSColor.dimgray;
+        for(let i = 0; i < this.nodes.length; i++) {
+            ctx.fill(this.nodes[i].path);
+        }
+        ctx.restore();
 
         //  reset the transform
         ctx.resetTransform();
