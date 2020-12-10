@@ -1,6 +1,5 @@
 import Cell from './Cell.js';
 import SLNode from './SLNode.js';
-import CSSColor from './CSSColor.js';
 import { line_json } from './types.js';
 
 
@@ -26,6 +25,9 @@ class Line {
      */
     cells: Cell[] = [];
 
+    bb: [[number, number], [number, number]];
+    path: Path2D = new Path2D;
+
     constructor(json: line_json, start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
         this.json = json;
 
@@ -48,6 +50,28 @@ class Line {
         this.nodes = [startNode, endNode];
         this.nodes[0].addLine(this);
         this.nodes[1].addLine(this);
+        let xs: [number, number] = [Math.min(this.nodes[0].x, this.nodes[1].x), 0];
+        if(xs[0] === this.nodes[0].x) {
+            xs[1] = this.nodes[1].x;
+        }
+        else {
+            xs[1] = this.nodes[0].x;
+        }
+        if(Math.abs(xs[0] - xs[1]) < 5) {
+            xs = [xs[1] - 5, xs[0] + 5];
+        }
+        let ys: [number, number] = [Math.min(this.nodes[0].y, this.nodes[1].y), 0];
+        if(ys[0] === this.nodes[0].y) {
+            ys[1] = this.nodes[1].y;
+        }
+        else {
+            ys[1] = this.nodes[0].y;
+        }
+        this.bb = [xs, ys];
+
+
+        this.path.moveTo(...this.nodes[0].coords);
+        this.path.lineTo(...this.nodes[1].coords);
     }
 
     draw(ctx: CanvasRenderingContext2D): void {

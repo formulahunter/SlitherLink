@@ -7,7 +7,7 @@ import { cell_json } from './types.js';
 class Cell {
 
     //  radius from center to "corner"
-    static RADIUS = 15;
+    static RADIUS = 30;
 
     //  dx, dy increments between cell nodes for hexagonal cells composed of
     //  equilateral triangles with sides of length Cell.RADIUS
@@ -153,12 +153,7 @@ class Cell {
             else {
                 ctx.strokeStyle = CSSColor.lightgray;
             }
-
-            const next = (i + 1) % 6;
-            ctx.beginPath();
-            ctx.moveTo(this.nodes[i].x, this.nodes[i].y);
-            ctx.lineTo(this.nodes[next].x, this.nodes[next].y);
-            ctx.stroke();
+            ctx.stroke(this.lines[i].path);
         }
         ctx.restore();
 
