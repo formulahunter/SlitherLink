@@ -1,4 +1,3 @@
-import Cell from './Cell.js';
 import SLNode from './SLNode.js';
 import { line_json } from './types.js';
 
@@ -13,21 +12,8 @@ class Line {
     static WIDTH: number = 4;
     static HOVER_WIDTH: number = 8;
 
-    readonly json: line_json
+    json?: line_json;
     nodes: [SLNode, SLNode];
-    ownNodes: [SLNode | null, SLNode | null] = [null, null];
-
-    /** Cell references are designated 'inside' and 'outside' using a right-hand
-     *  convention. The 'inside' cell is on the inside of a path followed when
-     *  tracing the hexagon counterclockwise (to the right); stated differently,
-     *  it is to the right when looking from the start node toward the end node.
-     *
-     *  Due to the way line references are linked (reassigned) when the board
-     *  is generated, a line's inside cell will always be defined but may not be
-     *  on the expected side (i.e. may point left instead of right for one cell
-     *  because it points right for the other; see explanation of "sides" above)
-     */
-    cells: Cell[] = [];
 
     /** a line is asserted if it has been manually set, or if its state is fixed
      * by either of its nodes */
@@ -36,64 +22,57 @@ class Line {
     bb: [[number, number], [number, number]];
     path: Path2D = new Path2D;
 
-    constructor(json: line_json, start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
+    constructor(json: line_json, start: SLNode, end: SLNode) {
         this.json = json;
 
-        let startNode: SLNode;
-        let endNode: SLNode;
-        if(start instanceof SLNode) {
-            startNode = start;
+        this.nodes = [start, end];
+        start.addLine(this);
+        end.addLine(this);
+
+        this.path.moveTo(...start.coords);
+        this.path.lineTo(...end.coords);
+
+        //  set the bounding box with width >= HOVER_WIDTH
+        let xs: [number, number] = [Math.min(start.x, end.x), 0];
+        if(xs[0] === start.x) {
+            xs[1] = end.x;
         }
         else {
-            startNode = new SLNode(...start);
-            this.ownNodes[0] = startNode;
-        }
-        if(end instanceof SLNode) {
-            endNode = end;
-        }
-        else {
-            endNode = new SLNode(...end);
-            this.ownNodes[1] = endNode;
-        }
-        this.nodes = [startNode, endNode];
-        this.nodes[0].addLine(this);
-        this.nodes[1].addLine(this);
-        let xs: [number, number] = [Math.min(this.nodes[0].x, this.nodes[1].x), 0];
-        if(xs[0] === this.nodes[0].x) {
-            xs[1] = this.nodes[1].x;
-        }
-        else {
-            xs[1] = this.nodes[0].x;
+            xs[1] = start.x;
         }
         if(Math.abs(xs[0] - xs[1]) < Line.HOVER_WIDTH) {
             xs = [xs[1] - Line.HOVER_WIDTH, xs[0] + Line.HOVER_WIDTH];
         }
-        let ys: [number, number] = [Math.min(this.nodes[0].y, this.nodes[1].y), 0];
-        if(ys[0] === this.nodes[0].y) {
-            ys[1] = this.nodes[1].y;
+        let ys: [number, number] = [Math.min(start.y, end.y), 0];
+        if(ys[0] === start.y) {
+            ys[1] = end.y;
         }
         else {
-            ys[1] = this.nodes[0].y;
+            ys[1] = start.y;
         }
         this.bb = [xs, ys];
-
-
-        this.path.moveTo(...this.nodes[0].coords);
-        this.path.lineTo(...this.nodes[1].coords);
     }
 
-    get state(): LineState {
-        return this.json.state;
+    get filled(): boolean {
+        if(!this.json) {
+            console.debug('no json object defined on line %o', this);
+            throw new TypeError('undefined json object');
+        }
+        return this.json.filled;
     }
-    set state(state: LineState) {
-        this.json.state = state;
+    set filled(state: boolean) {
+        if(!this.json) {
+            console.debug('no json object defined on line %o', this);
+            throw new TypeError('undefined json object');
+        }
+        this.json.filled = state;
     }
 
     /** fill this line, assert it, and return whether or not this changed
      * anything */
     fill(): boolean {
-        if(!this.asserted || !this.state) {
-            this.state = 1;
+        if(!this.asserted || !this.filled) {
+            this.filled = true;
             this.asserted = true;
             return true;
         }
@@ -102,8 +81,8 @@ class Line {
     /** empty this line, assert it, and return whether or not this changed
      * anything */
     empty(): boolean {
-        if(!this.asserted || this.state) {
-            this.state = 0;
+        if(!this.asserted || this.filled) {
+            this.filled = false;
             this.asserted = true;
             return true;
         }
@@ -112,7 +91,7 @@ class Line {
     /** toggle this line's state and assert it (return true because this method
      * changes the line's state by definition */
     toggle(): true {
-        if(this.state) {
+        if(this.filled) {
             this.empty();
         }
         else {
@@ -127,12 +106,6 @@ class Line {
             return true;
         }
         return false;
-    }
-
-    addCell(cell: Cell) {
-        if(!this.cells.includes(cell)) {
-            this.cells.push(cell);
-        }
     }
 }
 

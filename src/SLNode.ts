@@ -1,4 +1,3 @@
-import Cell from './Cell.js';
 import Line  from './Line.js';
 
 let depth: number = 0;
@@ -9,7 +8,6 @@ class SLNode {
     coords: [number, number];
 
     lines: Line[] = [];  //  a node is the intersection
-    cells: Cell[] = [];
 
     path: Path2D = new Path2D;
 
@@ -23,9 +21,12 @@ class SLNode {
             this.lines.push(line);
         }
     }
-    addCell(cell: Cell) {
-        if(!this.cells.includes(cell)) {
-            this.cells.push(cell);
+    removeLine(line: Line): void {
+        let i = 0;
+        for(; i < this.lines.length; i++) {
+            if(this.lines[i] === line) {
+                this.lines.splice(i, 1);
+            }
         }
     }
 
@@ -41,7 +42,7 @@ class SLNode {
     get filledCount(): number {
         let c = 0;
         for(let i = 0; i < this.lines.length; i++) {
-            if(this.lines[i].asserted && this.lines[i].state) {
+            if(this.lines[i].asserted && this.lines[i].filled) {
                 c++;
             }
         }
@@ -54,7 +55,9 @@ class SLNode {
             if(!this.lines[i].asserted) {
                 return true;
             }
-            c += this.lines[i].state;
+            if(this.lines[i].filled) {
+                c++;
+            }
         }
         return c === 2 || c === 0;
     }
@@ -105,7 +108,6 @@ class SLNode {
     get x(): number {
         return this.coords[0];
     }
-
     get y(): number {
         return this.coords[1];
     }

@@ -2,11 +2,7 @@ import Cell from './Cell.js';
 import CSSColor from './CSSColor.js';
 import Line, { LineState } from './Line.js';
 import SLNode from './SLNode.js';
-import { cell_json, hex_dirs, make_stem_cell } from './types.js';
-
-//  local constants for convenience
-//@ts-ignore: TS6133: 'up_op' is declared but its value is never read.
-const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
+import { board_json, make_board } from './types.js';
 
 class SlitherLinkGame {
 
@@ -32,9 +28,31 @@ class SlitherLinkGame {
     //  total number of nodes
     readonly nodeCount: number = -1;
 
-    //  container arrays
+    /** the layout of the `arms` array mimics the spiral-arm structure of the
+     * raw `board_json` except that the center cell is also defined and is the
+     * first element in all 6 arrays
+     */
+    arms: [Cell[], Cell[], Cell[], Cell[], Cell[], Cell[]] = [[], [], [], [], [], []];
+
+    /** the `cells` array is meant to simplify neighbor-finding. it stores cells
+     * in a grid using an [axial coordinate system][1] as `cells[x][y]`, where
+     * +x runs horizontally to the right of the board and +y runs diagonally
+     * toward the bottom-right of the board. the "origin" of this grid, for
+     * purposes of array indexing, lies at the intersection of the bottom-left
+     * and top "sides" of the board.
+     *
+     * [1]: https://www.redblobgames.com/grids/hexagons/#coordinates-axial
+     */
     board: Cell[][];
-    cells: Cell[];
+
+    /** a flat array of all cells on the board for fast iteration - it's
+     * probably not very useful beyond this as cells are simply added in
+     * the order they're initialized in `generateRandom()`
+     *
+     * @private
+     */
+    cells: Cell[] = [];
+
     private readonly lines: Line[];
     private nodes: SLNode[];
 
@@ -52,15 +70,9 @@ class SlitherLinkGame {
         this.lineCount = _3r * (_3r + 5) + 6;
         this.nodeCount = 6 * r * (r + 2) + 6;
 
-        this.cells = new Array(this.cellCount);
+        this.board = new Array(this.cellCount);
         this.lines = new Array(this.lineCount);
         this.nodes = new Array(this.nodeCount);
-
-        //  populate a 2D array of cell references by axial coordinates
-        this.board = new Array(this.diameter + 1);
-        for(let q = 0; q < this.diameter + 1; q++) {
-            this.board[q] = [];
-        }
 
         //  define event listeners on canvas element
         canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
@@ -85,172 +97,160 @@ class SlitherLinkGame {
 
     private generateRandom(radius: number) {
 
-        //  get axial (q, r) coordinates from json tree coordinates (stem, branch)
-        function tree_to_axial(i: number, j: number): [number, number] {
-            const ind = j < 0 ? 0 : 1;
-
-            const comp = [i, i + Math.abs(j)];
-            return [
-                comp[ind],
-                comp[1 - ind]
-            ];
-        }
-        //  get raw tree coordinates (stem, branch) from axial coordinates
-        //@ts-ignore: TS6133: 'axial_to_tree' is declared but its value is never read.
-        function axial_to_tree(q: number, r: number) {
-            const ind = q < r ? 0 : 1;
-            const a = [q, r];
-            return [
-                a[ind],
-                a[1 - ind] - a[ind]
-            ];
-        }
-
-        const span = this.diameter + 1;
-        const board = this.board;
-
-        //  get neighbors of the cell at [q, r], arranged in order corresponding to shared line positions
-        function get_neighbors_of(q: number, r: number): (Cell | null)[] {
-            //  validate the given axial coordinates
-            if(q < 0 || q > span - 1) {
-                console.error(`q = ${q} is outside of valid range (0, ${span - 1})`);
-                throw new RangeError('out-of-range axial coordinate q');
-            }
-            if(r < 0 || r > span - 1) {
-                console.error(`r = ${r} is outside of valid range (0, ${span - 1})`);
-                throw new RangeError('out-of-range axial coordinate r');
-            }
-            if(Math.abs(r - q) > radius) {
-                console.error(`[q, r] = [${q}, ${r}] fails limiting condition ==> abs(${r} - ${q}) > (${radius})`);
-                throw new RangeError('invalid axial coordinates q, r');
-            }
-            const v = Cell.vectors;
-            let neighbors: (Cell | null)[] = [];
-            for(let i = 0; i < v.length; i ++) {
-                const col = board[q + v[i][0]];
-                if(!col) {
-                    neighbors[i] = null;
-                }
-                else {
-                    neighbors[i] = col[r + v[i][1]] || null;
-                }
-            }
-            return neighbors;
-        }
-
-        //  get a raw structure of (mostly) unlinked lines/cells
-        const root: cell_json = make_stem_cell(span);
-
-        //  get the raw cell at grid position [i, j]
-        //  i gives the stem position, j gives the branch position (both are zero-indexed)
-        function get_cell_json_at(i: number, j: number): cell_json {
-            if((i + j) >= span || j > (span - 1) / 2) {
-                throw new Error(`invalid tree position [${i}, ${j}] for grid of span ${span}`);
-            }
-            let cell: cell_json = root;
-            while(i > 0) {
-                const temp = cell.cells[rt];
-                if(!temp) {
-                    console.debug('undefined child stem cell of %o', cell);
-                    throw new TypeError('undefined cell reference');
-                }
-                cell = temp;
-                i--;
-            }
-            const dir = j >= 0 ? up : dn;
-            j = Math.abs(j);
-            while(j > 0) {
-                const temp = cell.cells[dir];
-                if(!temp) {
-                    console.debug('undefined child branch cell of %o', cell);
-                    throw new TypeError('undefined cell reference');
-                }
-                cell = temp;
-                j--;
-            }
-            return cell;
-        }
+        //  get a raw spiral board structure
+        const raw: board_json = make_board(radius);
 
         const dx = Cell.DX * 2;
         const dy = Cell.DY * 3;
-        const sides = [0, -1, 1];
-        let [cellInd, lineInd, nodeInd] = [0, 0, 0];
-        for(let i = 0; i < span; i++) {
-            //  create the stem cell (j = 0), then the lower branch (j < 0), then the upper branch (j > 0)
-            for(let s = 0; s < sides.length; s++) {
-                for(let j = sides[s]; Math.abs(j) < (span + 1) / 2 && Math.abs(j) + i < span; j += sides[s]) {
-                    const [q, r] = tree_to_axial(i, j);
-                    const json = get_cell_json_at(i, j);
-                    //  x, y relative to root cell
-                    const [x0, y0] = [
-                        (i + Math.abs(j) / 2) * dx,
-                        (-j * dy)
+
+        //  construct the center cell (which has no "own" lines)
+        const center = new Cell(0, 0, []);
+
+        //  the center cell is the first element in every "arm" array so that
+        //  accessing arms[a][0] returns the center cell for any a
+        this.arms = [[center], [center], [center], [center], [center], [center]];
+
+        //  dh coefficients for calculating x, y coordinates from r, s
+        //  coeffs[side][x, y]
+        //  multiply these coefficients by (dh + 1) to get offset from previous
+        //  corner cell (in grid coordinates, origin @ center cell)
+        const coeffs: number[][] = [
+            [0, -1],
+            [-1, 0],
+            [-1, 1],
+            [1, 1],
+            [1, 0],
+            [1, -1]
+        ];
+
+        //  offsets to account for implicit cell_json orientation
+        //  these are used where indices must be rotated with the
+        //  associated spiral arm
+        const offsetsForSide: number[][] = [
+            [0, 1, 2, 3, 4, 5],
+            [1, 2, 3 ,4, 5, 0],
+            [2, 3, 4, 5, 0, 1],
+            [3, 4, 5 ,0, 1, 2],
+            [4, 5, 0, 1, 2, 3],
+            [5, 0, 1, 2, 3, 4]
+        ];
+
+        //  "triangle" numbers
+        const triangles: number[] = [0];
+        for(let n = 1; n <= radius; n++) {
+            triangles[n] = triangles[n - 1] + n;
+        }
+
+        //  current height, iterated for each r
+        let h: number = 0;
+
+        //  final h value in the current ring
+        let hMax = 0;
+
+        //  iterate through "rings" from 0 to 'radius'
+        //  center cell (r = 0) is implicitly defined
+        let r: number = 1;
+
+        //  loop condition uses raw[0].length, not 'radius' because the
+        //  raw board structure will have (radius + 1) rings
+        //  see note in `make_board` doc comment
+        for(; r < raw[0].length; r++) {
+
+            //  grid coordinates of preceding corner for each side for current r
+            const cornerBefore = [
+                [r * coeffs[4][0], r * coeffs[4][1]],
+                [r * coeffs[5][0], r * coeffs[5][1]],
+                [r * coeffs[0][0], r * coeffs[0][1]],
+                [r * coeffs[1][0], r * coeffs[1][1]],
+                [r * coeffs[2][0], r * coeffs[2][1]],
+                [r * coeffs[3][0], r * coeffs[3][1]]
+            ];
+
+            //  add current radius to maximum height
+            hMax += r;
+
+            //  height above starting height for current r
+            let dh = 0;
+
+            //  loop through cells along the current ring's edges
+            for(; h < hMax; h++, dh++) {
+
+                //  current arm in ring 'r', starting on side 0
+                //  (incremented in the 's' loop's final expression)
+                let a = 5 - (r + 4) % 6;
+                if(h === 0) {
+                    console.debug(r, a, h);
+                }
+
+                //  construct the cells at height h on all sides
+                //  note that a is incremented along with s
+                for(let s = 0; s < 6; s++, a = (a + 1) % 6) {
+
+                    //  calculate grid & canvas coordinates
+                    const grid: number[] = [
+                        coeffs[s][0] * (dh + 1) + cornerBefore[s][0],
+                        coeffs[s][1] * (dh + 1) + cornerBefore[s][1]
+                    ];
+                    const canv: number[] = [
+                        grid[0] * dx,
+                        grid[1] * dy
                     ];
 
-                    const nodeRefs: (SLNode | null)[] = [null, null, null, null, null, null];
-                    const lineRefs: (Line | null)[] = [null, null, null, null, null, null];
+                    //  compile cell, node, & line refs from neighboring cells where defined
+                    const offsets = offsetsForSide[s];
+                    const next = this.arms[(a + 1) % 6];
+                    const cellRefs: Cell[] = [
+                        next[h + dh - r + 1]
+                    ];
+                    const nodeRefs: SLNode[] = [];
+                    nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
+                    nodeRefs[1] = cellRefs[0].lines[offsets[3]].nodes[0];
+                    nodeRefs[4] = new SLNode(canv[0] + Cell.nodeOffsets[4][0], canv[1] + Cell.nodeOffsets[4][1]);
+                    nodeRefs[5] = new SLNode(canv[0] + Cell.nodeOffsets[5][0], canv[1] + Cell.nodeOffsets[5][1]);
 
-                    const neighbors = get_neighbors_of(q, r);
-                    const [dl, lf, ul] = [neighbors[3], neighbors[4], neighbors[5]];
-                    //  check for left neighbor & copy refs
-                    if(lf) {
-                        nodeRefs[4] = lf.nodes[2];
-                        nodeRefs[5] = lf.nodes[1];
-                        lineRefs[4] = lf.lines[1];
-                    }
-                    //  check for upper left neighbor & copy refs
-                    //  if refs copied from lf, don't overwrite them
-                    if(ul) {
-                        nodeRefs[0] = ul.nodes[2];
-                        nodeRefs[5] = nodeRefs[5] || ul.nodes[3];   //  nodeRefs[5] will be null if not copied from lf
-                        lineRefs[5] = ul.lines[2];
-                    }
-                    //  check for lower left neighbor & copy refs
-                    //  if refs copied from lf, don't overwrite them
-                    if(dl) {
-                        nodeRefs[3] = dl.nodes[1];
-                        nodeRefs[4] = nodeRefs[4] || dl.nodes[0];   //  nodeRefs[4] will be null if not copied from lf
-                        lineRefs[3] = dl.lines[0];
-                    }
+                    const lineRefs: Line[] = [];
+                    lineRefs[0] = new Line(raw[a][h][0], nodeRefs[0], nodeRefs[1]);
+                    lineRefs[4] = new Line(raw[a][h][2], nodeRefs[4], nodeRefs[5]);
+                    lineRefs[5] = new Line(raw[a][h][1], nodeRefs[5], nodeRefs[0]);
 
-                    const cell = new Cell(x0, y0, json, lineRefs, nodeRefs);
-                    this.addCell(cell, cellInd++);
-                    for(let n = 0; n < cell.nodes.length; n++) {
-                        const node = cell.nodes[n];
-                        if(node !== null) {
-                            this.addNode(node, nodeInd++);
+                    //  if this is not the first ring, the "next" arm is defined
+                    //  otherwise we have to make sure
+                    if(h > 0) {
+                        cellRefs[1] = next[h + dh - r];
+                        lineRefs[1] = cellRefs[1].lines[offsets[4]];
+                        nodeRefs[2] = lineRefs[1].nodes[1];
+
+                        //  if this is not the arm's first cell in a new ring,
+                        //  also get line and node refs from the previous cell in
+                        //  the same arm
+                        if(dh > 0) {
+                            cellRefs[2] = this.arms[a][h - 1];
+                            lineRefs[2] = cellRefs[2].lines[offsets[2]];
+                            nodeRefs[3] = lineRefs[2].nodes[1];
                         }
                     }
-                    for(let l = 0; l < cell.ownLines.length; l++) {
-                        const line = cell.ownLines[l];
-                        if(line !== null) {
-                            this.addLine(line, lineInd++);
-                        }
+                    else if(s > 0) {
+                        //
                     }
-                    board[q][r] = cell;
 
-                    //  need to manually break this loop on the middle row (j = s = 0)
-                    if(s === 0) {
-                        break;
-                    }
+                    const cell = new Cell(grid[0], grid[1], [lineRefs[0], lineRefs[5], lineRefs[4]], lineRefs);
+
+                    //  add lines to container array (mainly used for rendering)
+                    let lineCount = this.lines.length;
+                    this.lines[lineCount++] = cell.ownLines[0];
+                    this.lines[lineCount++] = cell.ownLines[1];
+                    this.lines[lineCount++] = cell.ownLines[2];
+
+                    //  offset grid coordinates x & y by the board radius to
+                    //  avoid negative indices
+                    this.board[grid[0] + radius][grid[1] + radius] = cell;
+
+                    //  add 1 to h b/c center cell defined as first element in each arm
+                    this.arms[a][h + 1] = cell;
+
+                    this.cells[this.cells.length] = cell;
                 }
             }
-        }
-        this.nodes = this.nodes.filter(n => n);
-    }
-    addCell(cell: Cell, i: number): void {
-        if(!this.cells.includes(cell)) {
-            this.cells[i] = cell;
-        }
-    }
-    addLine(line: Line, i: number): void {
-        if(!this.lines.includes(line)) {
-            this.lines[i] = line;
-        }
-    }
-    addNode(node: SLNode, i: number): void {
-        if(!this.nodes.includes(node)) {
-            this.nodes[i] = node;
         }
     }
 
@@ -326,7 +326,7 @@ class SlitherLinkGame {
                     update = 2;
                 }
             }
-            else if(ev.button === 1 || (ev.button && !this.mouse.state) || (this.mouse.state && !ev.button)) {
+            else if(ev.button === 1 || (ev.button && !this.mouse.filled) || (this.mouse.filled && !ev.button)) {
                 if(this.mouse.unset()) {
                     update = 1;
                 }
@@ -383,7 +383,7 @@ class SlitherLinkGame {
 
         //  print each cell's count, if defined
         ctx.save();
-        for(let i = 0; i < this.cells.length; ++i) {
+        for(let i = 0; i < this.board.length; ++i) {
             const count = this.cells[i].count;
             if(count !== null) {
                 //  not sure why but characters look just a hair too high when drawn
@@ -403,7 +403,7 @@ class SlitherLinkGame {
                 ctx.setLineDash(dash);
             }
             else {
-                if(this.lines[i].state === LineState.LINE) {
+                if(this.lines[i].filled) {
                     ctx.strokeStyle = CSSColor.black;
                 }
                 else {
@@ -422,7 +422,7 @@ class SlitherLinkGame {
             //  highlight the line below the mouse
             ctx.lineWidth = Line.HOVER_WIDTH;
             ctx.lineCap = 'round';
-            if(this.mouse.state === LineState.LINE) {
+            if(this.mouse.filled) {
                 ctx.strokeStyle = CSSColor.black;
             }
             else {
@@ -459,7 +459,7 @@ class SlitherLinkGame {
 
         if(Array.isArray(state)) {
             for(let i = 0; i < lines.length; i++) {
-                lines[i].state = state[i];
+                lines[i].filled = !!state[i];
             }
             return;
         }
@@ -467,7 +467,7 @@ class SlitherLinkGame {
         //  set each line's state based on corresponding bit in 'state'
         let lineMask = 1n;
         for(let i = 0; i < lines.length; i++) {
-            lines[i].state = (state & lineMask) ? LineState.LINE : LineState.INDET;
+            lines[i].filled = !!(state & lineMask);
             lineMask <<= 1n;
         }
     }
