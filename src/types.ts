@@ -34,14 +34,20 @@ type board_json = [cell_json[], cell_json[], cell_json[], cell_json[], cell_json
  * @param r - the radius of the board to be created
  */
 function make_board(r: number) {
+
+    //  increment r to make a extra ring to close open cells
+    ++r;
+    const height = r * (r + 1) / 2;
+
+    //  define the board as six arrays of 'height' cells each
     const b: board_json = [[], [], [], [], [], []];
-    for(let i = 0; i <= r; i++) {
-        b[i][0] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
-        b[i][1] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
-        b[i][2] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
-        b[i][3] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
-        b[i][4] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
-        b[i][5] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+    for(let i = 0; i < height; i++) {
+        b[0][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+        b[1][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+        b[2][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+        b[3][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+        b[4][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
+        b[5][i] = [{filled: false, asserted: false}, {filled: false, asserted: false}, {filled: false, asserted: false}];
     }
     return b;
 }
