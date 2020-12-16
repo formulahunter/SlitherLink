@@ -110,15 +110,15 @@ class SlitherLinkGame {
         //  accessing arms[a][0] returns the center cell for any a
         this.arms = [[center], [center], [center], [center], [center], [center]];
 
-        //  dh coefficients for calculating x, y coordinates from r, s
-        //  coeffs[side][x, y]
+        //  dh coefficients for calculating x, y grid coordinates from r, s
+        //  coeffs[side][x=0 | y=1]
         //  multiply these coefficients by (dh + 1) to get offset from previous
         //  corner cell (in grid coordinates, origin @ center cell)
         const coeffs: number[][] = [
             [0, -1],
             [-1, 0],
             [-1, 1],
-            [1, 1],
+            [0, 1],
             [1, 0],
             [1, -1]
         ];
@@ -157,6 +157,9 @@ class SlitherLinkGame {
         for(; r < raw[0].length; r++) {
 
             //  grid coordinates of preceding corner for each side for current r
+            //  cornerBefore is irrespective of dh along current side s
+            //  'coeffs' is defined for dh but can be used for r by offsetting
+            //  the node/side index (i.e. 4 instead of 0, 5 instead of 1, etc.)
             const cornerBefore = [
                 [r * coeffs[4][0], r * coeffs[4][1]],
                 [r * coeffs[5][0], r * coeffs[5][1]],
@@ -178,9 +181,6 @@ class SlitherLinkGame {
                 //  current arm in ring 'r', starting on side 0
                 //  (incremented in the 's' loop's final expression)
                 let a = 5 - (r + 4) % 6;
-                if(h === 0) {
-                    console.debug(r, a, h);
-                }
 
                 //  construct the cells at height h on all sides
                 //  note that a is incremented along with s
@@ -192,7 +192,7 @@ class SlitherLinkGame {
                         coeffs[s][1] * (dh + 1) + cornerBefore[s][1]
                     ];
                     const canv: number[] = [
-                        grid[0] * dx,
+                        grid[0] * dx + grid[1] * dx / 2,
                         grid[1] * dy
                     ];
 

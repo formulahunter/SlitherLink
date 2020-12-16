@@ -14,12 +14,12 @@ class Cell {
 
     //  position offsets (canvas coords) of each node wrt center of cell
     static readonly nodeOffsets: [number, number][] = [
-        [0, -2 * Cell.DY],
-        [Cell.DX, -Cell.DY],
-        [Cell.DX, Cell.DY],
-        [0, 2 * Cell.DY],
+        [-Cell.DX, -Cell.DY],
         [-Cell.DX, Cell.DY],
-        [-Cell.DX, -Cell.DY]
+        [0, 2 * Cell.DY],
+        [Cell.DX, Cell.DY],
+        [Cell.DX, -Cell.DY],
+        [0, -2 * Cell.DY]
     ];
 
     //  public nominal coordinates (at center of hexagon)
