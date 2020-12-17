@@ -43,7 +43,7 @@ class SlitherLinkGame {
      *
      * [1]: https://www.redblobgames.com/grids/hexagons/#coordinates-axial
      */
-    board: Cell[][];
+    board: Cell[][] = [];
 
     /** a flat array of all cells on the board for fast iteration - it's
      * probably not very useful beyond this as cells are simply added in
@@ -71,11 +71,11 @@ class SlitherLinkGame {
         this.nodeCount = 6 * r * (r + 2) + 6;
 
         this.board = new Array(this.cellCount);
-        this.lines = new Array(this.lineCount);
+        this.lines = [];
         this.nodes = new Array(this.nodeCount);
 
         //  define event listeners on canvas element
-        canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
+        // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
         canvas.addEventListener('click', this.handleClick.bind(this));
         canvas.addEventListener('auxclick', this.handleAuxClick.bind(this));
         canvas.addEventListener('contextmenu', this.handleContextMenu.bind(this));
@@ -97,14 +97,29 @@ class SlitherLinkGame {
 
     private generateRandom(radius: number) {
 
+        const span = 2 * (radius + 1) + 1;
+        for(let i = 0; i < span; i++) {
+            this.board[i] = [];
+        }
+
         //  get a raw spiral board structure
         const raw: board_json = make_board(radius);
 
         const dx = Cell.DX * 2;
         const dy = Cell.DY * 3;
 
-        //  construct the center cell (which has no "own" lines)
-        const center = new Cell(0, 0, []);
+        //  construct the center cell
+        const centerNodes: SLNode[] = [new SLNode(Cell.nodeOffsets[0][0], Cell.nodeOffsets[0][1])];
+        const centerLines: Line[] = [];
+        for(let a = 0; a < 6; a++) {
+            let wrap = (a + 1) % 6;
+            if(!centerNodes[wrap]) {
+                centerNodes[wrap] = new SLNode(Cell.nodeOffsets[wrap][0], Cell.nodeOffsets[wrap][1]);
+            }
+            //  offset index in centerLines to align raw[a][0] with arms[a]
+            centerLines[(a + 4) % 6] = new Line(raw[a][0], centerNodes[a], centerNodes[wrap]);
+        }
+        const center = new Cell(0, 0, centerLines, centerLines);
 
         //  the center cell is the first element in every "arm" array so that
         //  accessing arms[a][0] returns the center cell for any a
@@ -142,19 +157,22 @@ class SlitherLinkGame {
         }
 
         //  current height, iterated for each r
-        let h: number = 0;
+        let h: number = 1;
 
-        //  final h value in the current ring
+        //  final h value in this ring
         let hMax = 0;
 
-        //  iterate through "rings" from 0 to 'radius'
-        //  center cell (r = 0) is implicitly defined
+        //  iterate through "rings" from 1 to 'radius'
+        //  center cell (r = 0) is defined above
         let r: number = 1;
 
-        //  loop condition uses raw[0].length, not 'radius' because the
-        //  raw board structure will have (radius + 1) rings
+        //  index of the first line of the current cell in raw[a]
+        let l = 1;
+
+        //  loop condition uses <= because the raw board structure will
+        //  have (radius + 1) rings
         //  see note in `make_board` doc comment
-        for(; r < raw[0].length; r++) {
+        for(; r <= radius; r++) {
 
             //  grid coordinates of preceding corner for each side for current r
             //  cornerBefore is irrespective of dh along current side s
@@ -172,11 +190,11 @@ class SlitherLinkGame {
             //  add current radius to maximum height
             hMax += r;
 
-            //  height above starting height for current r
-            let dh = 0;
+            //  height above last height in previous r
+            let dh = 1;
 
             //  loop through cells along the current ring's edges
-            for(; h < hMax; h++, dh++) {
+            for(; h <= hMax; h++, dh++) {
 
                 //  current arm in ring 'r', starting on side 0
                 //  (incremented in the 's' loop's final expression)
@@ -188,67 +206,151 @@ class SlitherLinkGame {
 
                     //  calculate grid & canvas coordinates
                     const grid: number[] = [
-                        coeffs[s][0] * (dh + 1) + cornerBefore[s][0],
-                        coeffs[s][1] * (dh + 1) + cornerBefore[s][1]
+                        coeffs[s][0] * dh + cornerBefore[s][0],
+                        coeffs[s][1] * dh + cornerBefore[s][1]
                     ];
                     const canv: number[] = [
                         grid[0] * dx + grid[1] * dx / 2,
                         grid[1] * dy
                     ];
 
-                    //  compile cell, node, & line refs from neighboring cells where defined
                     const offsets = offsetsForSide[s];
                     const next = this.arms[(a + 1) % 6];
-                    const cellRefs: Cell[] = [
-                        next[h + dh - r + 1]
-                    ];
+                    const same = this.arms[a];
+
+                    //  compile cell, node, & line refs from neighboring cells where defined
+                    const cellRefs: Cell[] = [];
                     const nodeRefs: SLNode[] = [];
-                    nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
-                    nodeRefs[1] = cellRefs[0].lines[offsets[3]].nodes[0];
-                    nodeRefs[4] = new SLNode(canv[0] + Cell.nodeOffsets[4][0], canv[1] + Cell.nodeOffsets[4][1]);
-                    nodeRefs[5] = new SLNode(canv[0] + Cell.nodeOffsets[5][0], canv[1] + Cell.nodeOffsets[5][1]);
-
                     const lineRefs: Line[] = [];
-                    lineRefs[0] = new Line(raw[a][h][0], nodeRefs[0], nodeRefs[1]);
-                    lineRefs[4] = new Line(raw[a][h][2], nodeRefs[4], nodeRefs[5]);
-                    lineRefs[5] = new Line(raw[a][h][1], nodeRefs[5], nodeRefs[0]);
+                    const ownLines: Line[] = [];
 
-                    //  if this is not the first ring, the "next" arm is defined
-                    //  otherwise we have to make sure
-                    if(h > 0) {
-                        cellRefs[1] = next[h + dh - r];
-                        lineRefs[1] = cellRefs[1].lines[offsets[4]];
-                        nodeRefs[2] = lineRefs[1].nodes[1];
-
-                        //  if this is not the arm's first cell in a new ring,
-                        //  also get line and node refs from the previous cell in
-                        //  the same arm
-                        if(dh > 0) {
-                            cellRefs[2] = this.arms[a][h - 1];
-                            lineRefs[2] = cellRefs[2].lines[offsets[2]];
-                            nodeRefs[3] = lineRefs[2].nodes[1];
+                    //  define cell refs
+                    //  cellRefs[1] will always be defined
+                    //  cellRefs[0] may be undefined, e.g. in the first ring
+                    //  cellRefs[2] may be undefined, e.g. first cell per arm in new ring
+                    if(dh > 1) {
+                        cellRefs[0] = next[h - r + 1];
+                        cellRefs[1] = next[h - r];
+                        cellRefs[2] = same[h - 1];
+                    }
+                    else {
+                        cellRefs[1] = same[h - 1];
+                        if(h > 1) {
+                            cellRefs[0] = next[h - r + 1]
+                        }
+                        else if(a > 0) {
+                            cellRefs[2] = this.arms[a - 1][0];
+                            if(a === 5) {
+                                cellRefs[0] = this.arms[0][0];
+                            }
                         }
                     }
-                    else if(s > 0) {
-                        //
+
+                    //  define node refs
+                    //  new nodes will be constructed where necessary so that 6
+                    //  nodes are always defined
+                    if(cellRefs[0]) {
+                        if(h === hMax) {
+                            nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[1]][1]);
+                        }
+                        else {
+                            nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
+                        }
+                    }
+                    else {
+                        nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[0]][1]);
+                    }
+                    if(dh > 1) {
+                        nodeRefs[1] = cellRefs[1].lines[offsets[5]].nodes[0];
+                        nodeRefs[2] = cellRefs[1].lines[offsets[4]].nodes[0];
+                        nodeRefs[3] = cellRefs[2].lines[offsets[0]].nodes[0];
+                    }
+                    else {
+                        nodeRefs[1] = cellRefs[1].lines[offsetsForSide[(s + 5) % 6][0]].nodes[0];
+                        nodeRefs[2] = cellRefs[1].lines[offsetsForSide[(s + 5) % 6][5]].nodes[0];
+                        //  first ring will have cellRefs[2] defined at a > 0
+                        if(cellRefs[2]) {
+                            nodeRefs[3] = cellRefs[2].lines[offsetsForSide[(s + 5) % 6][0]].nodes[0];
+                        }
+                        else {
+                            nodeRefs[3] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[3]][0], canv[1] + Cell.nodeOffsets[offsets[3]][1]);
+                        }
+                    }
+                    nodeRefs[4] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[4]][0], canv[1] + Cell.nodeOffsets[offsets[4]][1]);
+                    nodeRefs[5] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[5]][0], canv[1] + Cell.nodeOffsets[offsets[5]][1]);
+
+                    //  define line refs
+                    //  own lines will always be defined
+                    //  refs from neighboring cells will always be defined
+                    //  lines will not be constructed where no non-own line refs are available
+                    //  in these cases, a subsequent neighboring cell is expected to define the ref once it is constructed
+                    //  e.g. (canonical) line 2 may be undefined if cellRefs[2] is undefined
+                    //  also, (canonical) line 3 is frequently left undefined
+                    ownLines[0] = new Line(raw[a][l], nodeRefs[0], nodeRefs[1]);
+                    lineRefs[offsets[0]] = ownLines[0];
+                    if(dh > 1) {
+                        lineRefs[offsets[1]] = cellRefs[1].lines[offsets[4]];
+                        lineRefs[offsets[2]] = cellRefs[2].lines[offsets[5]];
+                    }
+                    else if(h === 0) {
+                        lineRefs[offsets[1]] = centerLines[(s + 4) % 6];
+                        if(s > 0) {
+                            lineRefs[offsets[2]] = this.arms[s - 1][1].lines[offsetsForSide[s - 1][5]];
+                        }
+                    }
+                    else {
+                        lineRefs[offsets[1]] = cellRefs[1].lines[offsetsForSide[(s + 5) % 6][5]];
+                    }
+                    ownLines[1] = new Line(raw[a][l + 1], nodeRefs[5], nodeRefs[0]);
+                    ownLines[2] = new Line(raw[a][l + 2], nodeRefs[4], nodeRefs[5]);
+                    lineRefs[offsets[4]] = ownLines[2];
+                    lineRefs[offsets[5]] = ownLines[1];
+
+                    //  the outermost ring includes a fourth line per cell to close the board's perimeter
+                    if(r === radius) {
+                        ownLines[3] = new Line(raw[a][l + 3], nodeRefs[3], nodeRefs[4]);
+                        lineRefs[offsets[3]] = ownLines[3];
                     }
 
-                    const cell = new Cell(grid[0], grid[1], [lineRefs[0], lineRefs[5], lineRefs[4]], lineRefs);
+                    //  assign newly created references to other cells as appropriate
+                    if(h === 1) {
+                        if(s === 5) {
+                            next[1].lines[offsetsForSide[(s + 1) % 6][2]] = lineRefs[offsets[0]];
+                        }
+                    }
+                    else if (h === hMax) {
+                        next[h - r + 1].lines[offsetsForSide[(s + 1) % 6][2]] = lineRefs[offsets[0]];
+                    }
+                    else {
+                        next[h - r + 1].lines[offsets[3]] = lineRefs[offsets[0]];
+                    }
+
+                    const cell = new Cell(grid[0], grid[1], ownLines, lineRefs);
 
                     //  add lines to container array (mainly used for rendering)
                     let lineCount = this.lines.length;
                     this.lines[lineCount++] = cell.ownLines[0];
                     this.lines[lineCount++] = cell.ownLines[1];
                     this.lines[lineCount++] = cell.ownLines[2];
+                    if(cell.ownLines[3]) {
+                        this.lines[lineCount++] = cell.ownLines[3];
+                    }
 
                     //  offset grid coordinates x & y by the board radius to
                     //  avoid negative indices
                     this.board[grid[0] + radius][grid[1] + radius] = cell;
 
-                    //  add 1 to h b/c center cell defined as first element in each arm
-                    this.arms[a][h + 1] = cell;
+                    this.arms[a][h] = cell;
 
                     this.cells[this.cells.length] = cell;
+                }
+
+                //  increment l by the number of lines per cell in the current ring
+                if(r === radius - 1) {
+                    l += 4;
+                }
+                else {
+                    l += 3;
                 }
             }
         }
@@ -383,7 +485,7 @@ class SlitherLinkGame {
 
         //  print each cell's count, if defined
         ctx.save();
-        for(let i = 0; i < this.board.length; ++i) {
+        for(let i = 0; i < this.cells.length; ++i) {
             const count = this.cells[i].count;
             if(count !== null) {
                 //  not sure why but characters look just a hair too high when drawn
@@ -432,18 +534,18 @@ class SlitherLinkGame {
             ctx.restore();
         }
 
-        //  mark each node as valid or invalid
-        ctx.save();
-        for(let i = 0; i < this.nodes.length; i++) {
-            if(this.nodes[i].isValid()) {
-                ctx.fillStyle = CSSColor.green;
-            }
-            else {
-                ctx.fillStyle = CSSColor.red;
-            }
-            ctx.fill(this.nodes[i].path);
-        }
-        ctx.restore();
+        // //  mark each node as valid or invalid
+        // ctx.save();
+        // for(let i = 0; i < this.nodes.length; i++) {
+        //     if(this.nodes[i].isValid()) {
+        //         ctx.fillStyle = CSSColor.green;
+        //     }
+        //     else {
+        //         ctx.fillStyle = CSSColor.red;
+        //     }
+        //     ctx.fill(this.nodes[i].path);
+        // }
+        // ctx.restore();
 
         //  reset the transform
         ctx.resetTransform();
