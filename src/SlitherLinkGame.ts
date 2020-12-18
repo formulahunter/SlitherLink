@@ -118,6 +118,7 @@ class SlitherLinkGame {
             }
             //  offset index in centerLines to align raw[a][0] with arms[a]
             centerLines[(a + 4) % 6] = new Line(raw[a][0], centerNodes[a], centerNodes[wrap]);
+            this.lines[a] = centerLines[a];
         }
         const center = new Cell([radius, radius], [0, 0], centerLines, centerLines);
 
