@@ -23,8 +23,8 @@ class Cell {
     ];
 
     //  public nominal coordinates (at center of hexagon)
-    x: number;
-    y: number;
+    grid: [number, number];
+    canv: [number, number];
 
     count: number | null = null;
     lines: Line[];
@@ -34,17 +34,17 @@ class Cell {
      * additional line refs can be provided as well, but may also be assigned
      * after construction
      *
-     * @param x - x-coordinate at cell center
-     * @param y - y-coordinate at cell center
+     * @param grid - integer x & y coordinates of this cell in the game's `cells` array
+     * @param canv - this cell's canvas coordinates
      * @param ownLines - an array of this cell's "own" lines as defined by its json object
      * @param lines - an optional array of all this cell's lines. if provided,
      *      this array must include external line refs as well as this cell's
      *      own line refs (same as in `ownLines`), all in the correct positions
      */
-    constructor(x: number, y: number, ownLines: Line[], lines: Line[] = []) {
+    constructor(grid: [number, number], canv: [number, number], ownLines: Line[], lines: Line[] = []) {
 
-        this.x = x;
-        this.y = y;
+        this.grid = grid;
+        this.canv = canv
         this.ownLines = ownLines;
         this.lines = lines;
     }

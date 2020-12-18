@@ -119,7 +119,7 @@ class SlitherLinkGame {
             //  offset index in centerLines to align raw[a][0] with arms[a]
             centerLines[(a + 4) % 6] = new Line(raw[a][0], centerNodes[a], centerNodes[wrap]);
         }
-        const center = new Cell(0, 0, centerLines, centerLines);
+        const center = new Cell([radius, radius], [0, 0], centerLines, centerLines);
 
         //  the center cell is the first element in every "arm" array so that
         //  accessing arms[a][0] returns the center cell for any a
@@ -205,11 +205,11 @@ class SlitherLinkGame {
                 for(let s = 0; s < 6; s++, a = (a + 1) % 6) {
 
                     //  calculate grid & canvas coordinates
-                    const grid: number[] = [
+                    const grid: [number, number] = [
                         coeffs[s][0] * dh + cornerBefore[s][0],
                         coeffs[s][1] * dh + cornerBefore[s][1]
                     ];
-                    const canv: number[] = [
+                    const canv: [number, number] = [
                         grid[0] * dx + grid[1] * dx / 2,
                         grid[1] * dy
                     ];
@@ -325,7 +325,8 @@ class SlitherLinkGame {
                         next[h - r + 1].lines[offsets[3]] = lineRefs[offsets[0]];
                     }
 
-                    const cell = new Cell(grid[0], grid[1], ownLines, lineRefs);
+                    const cell = new Cell(grid, canv, ownLines, lineRefs);
+                    cell.count = dh;
 
                     //  add lines to container array (mainly used for rendering)
                     let lineCount = this.lines.length;
@@ -490,7 +491,7 @@ class SlitherLinkGame {
             if(count !== null) {
                 //  not sure why but characters look just a hair too high when drawn
                 //  at cell.y, so adding 1 to lower them
-                ctx.fillText(count.toString(), this.cells[i].x, this.cells[i].y + 1, Cell.RADIUS);
+                ctx.fillText(count.toString(), this.cells[i].canv[0], this.cells[i].canv[1], Cell.RADIUS);
             }
         }
         ctx.restore();
