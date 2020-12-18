@@ -22,8 +22,10 @@ class Cell {
         [0, -2 * Cell.DY]
     ];
 
-    //  public nominal coordinates (at center of hexagon)
+   /** this cell's position in the board's grid representation */
     grid: [number, number];
+
+    /** this cell's coordinates in the canvas drawing context */
     canv: [number, number];
 
     count: number | null = null;

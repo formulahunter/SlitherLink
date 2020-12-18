@@ -1,33 +1,37 @@
-/** The board's raw json format is organized like a bicycle wheel. Each spoke is
- * an array of cells, and the hub is the center cell. Each cell "owns" four
- * lines, except for the center cell which owns none -- it is composed of one
- * line from each of the first cell in each spoke. Each Line has a state which
- * is either filled, unset (i.e. not asserted), or blank.
+/** The board's raw json format is modeled as a spiral -- the center cell is
+ * surrounded by six "arms" that cascade around the circumference of the board.
+ * represented by six flat arrays of cells. each cell contributes three lines of
+ * its own and borrows the other three from neighboring cells, so that no lines are defined twice.
  */
 
 type line_json = {
     filled: boolean,
-    asserted: false
+    asserted: boolean
 };
-
-//  cell_json may be an empty array b/c the center cell has no lines of its own
-type cell_json = line_json[];
 type board_json = [line_json[], line_json[], line_json[], line_json[], line_json[], line_json[]];
 
-/** get a board with the given radius, with all lines unset. the json data is
- * modeled after a spiral -- the center cell is surrounded by six "arms" that
- * cascade around the circumference of the board, represented by six flat arrays
- * of cells. each cell contributes three lines of its own and borrows the other
- * three from neighboring cells, so that no lines are defined twice.
+/** get groups of individual lines, arranged in six "spiral arm" arrays (as
+ * described below) to represent a board with the given radius
  *
- * cells are not represented explicitly but rather defined implicitly by each
- * successive sequence of three lines. These sequences start offset by one line
- * from the beginning of the array, as the first line in each arm belongs to the
- * board's center cell.
+ * the board's raw json format is conceptually modeled as a spiral. the center
+ * cell is surrounded by six "arms" that cascade around the circumference of the
+ * board and represent consecutive cells. cells define/are defined by individual
+ * lines such that any given line is "owned" by exactly one cell, thus avoiding
+ * duplicate -- and potentially conflicting -- records.
  *
- * finally, each cell around the perimeter actually requires four lines to close
- * all edges, so the final "side" of each arm includes 4 lines per cell instead
- * of the typical 3.
+ * generally, a given cell is said to "contribute" three unique lines to the
+ * board, and to "borrow" its remaining three lines from neighboring cells.
+ * there are two exceptions to this rule: 1) cells around the outer bounds of
+ * the board contribute four lines each, so as to close otherwise open edges;
+ * and 2) the center cell contributes all six of its own edges, as a result of
+ * the way that cells' own lines are arranged/assigned.
+ *
+ * because of the fixed spatial/structural relation of lines and cells, and
+ * because the aggregate board state is defined in terms of line states, cells
+ * have no explicit implementation. spiral arms consist of individual lines, and
+ * cells are defined implicitly as groups of three (or four) consecutive lines,
+ * with the first single line in each arm owned by the cell at the center of the
+ * board.
  *
  * @param r - the radius of the board to be created
  */
@@ -56,4 +60,4 @@ function make_board(r: number): board_json {
     return b;
 }
 
-export {board_json, cell_json, line_json, make_board};
+export {board_json, line_json, make_board};

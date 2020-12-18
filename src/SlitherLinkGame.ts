@@ -93,6 +93,7 @@ class SlitherLinkGame {
 
     private generateRandom(radius: number) {
 
+        //  initialize the 2D grid for a board of the given size
         const span = 2 * (radius + 1) + 1;
         for(let i = 0; i < span; i++) {
             this.board[i] = [];
@@ -166,9 +167,9 @@ class SlitherLinkGame {
         //  index of the first line of the current cell in raw[a]
         let l = 1;
 
-        //  loop condition uses <= because the raw board structure will
-        //  have (radius + 1) rings
-        //  see note in `make_board` doc comment
+        //  iterate rings from 1 <= r <= radius
+        //  this accounts for the cell at the center of the board, and also
+        //  makes it easy to identify the outermost ring
         for(; r <= radius; r++) {
 
             //  grid coordinates of preceding corner for each side for current r
@@ -312,6 +313,13 @@ class SlitherLinkGame {
                         this.lines[lineCount++] = ownLines[i];
                     }
 
+                    //  construct new cell instance & add to container arrays
+                    //  offset grid coords to avoid negative indices in board[]
+                    const cell = new Cell(grid, canv, ownLines, lineRefs);
+                    this.board[grid[0] + radius][grid[1] + radius] = cell;
+                    this.arms[a][h] = cell;
+                    this.cells[this.cells.length] = cell;
+
                     //  assign newly created references to other cells as appropriate
                     if(h === 1) {
                         if(s === 5) {
@@ -324,16 +332,6 @@ class SlitherLinkGame {
                     else {
                         next[h - r + 1].lines[offsets[3]] = lineRefs[offsets[0]];
                     }
-
-                    const cell = new Cell(grid, canv, ownLines, lineRefs);
-
-                    //  offset grid coordinates x & y by the board radius to
-                    //  avoid negative indices
-                    this.board[grid[0] + radius][grid[1] + radius] = cell;
-
-                    this.arms[a][h] = cell;
-
-                    this.cells[this.cells.length] = cell;
                 }
 
                 //  increment l by the number of lines per cell in the current ring

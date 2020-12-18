@@ -12,12 +12,8 @@ class Line {
     static WIDTH: number = 4;
     static HOVER_WIDTH: number = 8;
 
-    json?: line_json;
+    json: line_json;
     nodes: [SLNode, SLNode];
-
-    /** a line is asserted if it has been manually set, or if its state is fixed
-     * by either of its nodes */
-    asserted: boolean = false;
 
     bb: [[number, number], [number, number]];
     path: Path2D = new Path2D;
@@ -54,18 +50,19 @@ class Line {
     }
 
     get filled(): boolean {
-        if(!this.json) {
-            console.debug('no json object defined on line %o', this);
-            throw new TypeError('undefined json object');
-        }
         return this.json.filled;
     }
     set filled(state: boolean) {
-        if(!this.json) {
-            console.debug('no json object defined on line %o', this);
-            throw new TypeError('undefined json object');
-        }
         this.json.filled = state;
+    }
+
+    /** a line is considered "asserted" if its state has been manually set or is
+     * determined by either of its nodes */
+    get asserted(): boolean {
+        return this.json.asserted;
+    }
+    set asserted(asserted: boolean) {
+        this.json.asserted = asserted;
     }
 
     /** fill this line, assert it, and return whether or not this changed
