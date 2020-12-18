@@ -1,4 +1,3 @@
-import Cell from './Cell.js';
 import SLNode from './SLNode.js';
 import { line_json } from './types.js';
 
@@ -13,105 +12,64 @@ class Line {
     static WIDTH: number = 4;
     static HOVER_WIDTH: number = 8;
 
-    readonly json: line_json
+    json: line_json;
     nodes: [SLNode, SLNode];
-    ownNodes: [SLNode | null, SLNode | null] = [null, null];
-
-    /** Cell references are designated 'inside' and 'outside' using a right-hand
-     *  convention. The 'inside' cell is on the inside of a path followed when
-     *  tracing the hexagon counterclockwise (to the right); stated differently,
-     *  it is to the right when looking from the start node toward the end node.
-     *
-     *  Due to the way line references are linked (reassigned) when the board
-     *  is generated, a line's inside cell will always be defined but may not be
-     *  on the expected side (i.e. may point left instead of right for one cell
-     *  because it points right for the other; see explanation of "sides" above)
-     */
-    cells: Cell[] = [];
-
-    /** a line is asserted if it has been manually set, or if its state is fixed
-     * by either of its nodes */
-    asserted: boolean = false;
 
     bb: [[number, number], [number, number]];
     path: Path2D = new Path2D;
 
-    constructor(json: line_json, start: (SLNode | [number, number]), end: (SLNode | [number, number])) {
+    constructor(json: line_json, start: SLNode, end: SLNode) {
         this.json = json;
 
-        let startNode: SLNode;
-        let endNode: SLNode;
-        if(start instanceof SLNode) {
-            startNode = start;
+        this.nodes = [start, end];
+        start.addLine(this);
+        end.addLine(this);
+
+        this.path.moveTo(...start.coords);
+        this.path.lineTo(...end.coords);
+
+        //  set the bounding box with width >= HOVER_WIDTH
+        let xs: [number, number] = [Math.min(start.x, end.x), 0];
+        if(xs[0] === start.x) {
+            xs[1] = end.x;
         }
         else {
-            startNode = new SLNode(...start);
-            this.ownNodes[0] = startNode;
-        }
-        if(end instanceof SLNode) {
-            endNode = end;
-        }
-        else {
-            endNode = new SLNode(...end);
-            this.ownNodes[1] = endNode;
-        }
-        this.nodes = [startNode, endNode];
-        this.nodes[0].addLine(this);
-        this.nodes[1].addLine(this);
-        let xs: [number, number] = [Math.min(this.nodes[0].x, this.nodes[1].x), 0];
-        if(xs[0] === this.nodes[0].x) {
-            xs[1] = this.nodes[1].x;
-        }
-        else {
-            xs[1] = this.nodes[0].x;
+            xs[1] = start.x;
         }
         if(Math.abs(xs[0] - xs[1]) < Line.HOVER_WIDTH) {
             xs = [xs[1] - Line.HOVER_WIDTH, xs[0] + Line.HOVER_WIDTH];
         }
-        let ys: [number, number] = [Math.min(this.nodes[0].y, this.nodes[1].y), 0];
-        if(ys[0] === this.nodes[0].y) {
-            ys[1] = this.nodes[1].y;
+        let ys: [number, number] = [Math.min(start.y, end.y), 0];
+        if(ys[0] === start.y) {
+            ys[1] = end.y;
         }
         else {
-            ys[1] = this.nodes[0].y;
+            ys[1] = start.y;
         }
         this.bb = [xs, ys];
-
-
-        this.path.moveTo(...this.nodes[0].coords);
-        this.path.lineTo(...this.nodes[1].coords);
     }
 
-    draw(ctx: CanvasRenderingContext2D): void {
-
-        ctx.save();
-        // if(this.proven) {
-        //     ctx.strokeStyle = CSSColor.black;
-        // }
-        // else {
-        //     ctx.strokeStyle = CSSColor.lightgray;
-        // }
-
-        ctx.beginPath();
-        ctx.moveTo(this.start.x, this.start.y);
-        ctx.lineTo(this.end.x, this.end.y);
-        ctx.stroke();
-
-        ctx.restore();
+    get filled(): boolean {
+        return this.json.filled;
+    }
+    set filled(state: boolean) {
+        this.json.filled = state;
     }
 
-    get state(): LineState {
-        return this.json.state;
+    /** a line is considered "asserted" if its state has been manually set or is
+     * determined by either of its nodes */
+    get asserted(): boolean {
+        return this.json.asserted;
     }
-    set state(state: LineState) {
-        this.json.state = state;
+    set asserted(asserted: boolean) {
+        this.json.asserted = asserted;
     }
 
     /** fill this line, assert it, and return whether or not this changed
      * anything */
     fill(): boolean {
-        if(!this.asserted || !this.state) {
-            this.state = 1;
+        if(!this.asserted || !this.filled) {
+            this.filled = true;
             this.asserted = true;
             return true;
         }
@@ -120,8 +78,8 @@ class Line {
     /** empty this line, assert it, and return whether or not this changed
      * anything */
     empty(): boolean {
-        if(!this.asserted || this.state) {
-            this.state = 0;
+        if(!this.asserted || this.filled) {
+            this.filled = false;
             this.asserted = true;
             return true;
         }
@@ -130,7 +88,7 @@ class Line {
     /** toggle this line's state and assert it (return true because this method
      * changes the line's state by definition */
     toggle(): true {
-        if(this.state) {
+        if(this.filled) {
             this.empty();
         }
         else {
@@ -145,61 +103,6 @@ class Line {
             return true;
         }
         return false;
-    }
-
-    get proven(): number {
-        return this.state & LineState.LINE;
-    }
-    get disproven(): number {
-        return this.state & LineState.BLANK;
-    }
-    get indet(): number {
-        return this.state & LineState.INDET;
-    }
-
-    /** Given a refNode, get the opposite node */
-    getOppositeNode(refNode: SLNode) {
-        return this.nodes[1 - this.nodes.indexOf(refNode)];
-    }
-
-    get start(): SLNode {
-        return this.nodes[0];
-    }
-    set start(start: SLNode) {
-        this.nodes[0] = start;
-    }
-
-    get end(): SLNode {
-        return this.nodes[1];
-    }
-    set end(end: SLNode) {
-        this.nodes[1] = end;
-    }
-
-
-
-    /* The 'inside' cell is the cell on the inside of the curve followed when
-       tracing the hexagon clockwise; from the start node looking toward the
-        end node, it is on the right side
-     */
-    get inside(): Cell {
-        return this.cells[0];
-    }
-    set inside(inside: Cell) {
-        this.cells[0] = inside;
-    }
-
-    get outside(): Cell {
-        return this.cells[1];
-    }
-    set outside(outside: Cell) {
-        this.cells[1] = outside;
-    }
-
-    addCell(cell: Cell) {
-        if(!this.cells.includes(cell)) {
-            this.cells.push(cell);
-        }
     }
 }
 

@@ -1,169 +1,63 @@
-/** define a dictionary of direction key-value pairs for consistency & ease of
- * maintenance */
-export const hex_dirs = {
-    up: 0,
-    rt: 1,
-    dn: 2,
-    up_op: 3,
-    lf: 4,
-    dn_op: 5
+/** The board's raw json format is modeled as a spiral -- the center cell is
+ * surrounded by six "arms" that cascade around the circumference of the board.
+ * represented by six flat arrays of cells. each cell contributes three lines of
+ * its own and borrows the other three from neighboring cells, so that no lines are defined twice.
+ */
+
+type line_json = {
+    filled: boolean,
+    asserted: boolean
 };
+type board_json = [line_json[], line_json[], line_json[], line_json[], line_json[], line_json[]];
 
-//  local constants for convenience
-const { up, rt, dn, up_op, lf, dn_op } = hex_dirs;
-
-/** map each direction index to its opposite */
-const opps: number[] = [];
-opps[up] = up_op;
-opps[rt] = lf;
-opps[dn] = dn_op;
-opps[up_op] = up;
-opps[lf] = rt;
-opps[dn_op] = dn;
-
-/** define the "radius" of the grid as the distance, in cell count, from center
- * to corners */
-let radius: number = -1;
-
-
- /** raw lines indicate no info other that their state */
-export interface line_json {
-    state: number
-}
-
-/** cell_json represents raw cell data, namely their constituent lines and
- * adjacent cells, primarily for purposes of defining the raw board structure
- * that gives meaning to the line_json instances' states.
+/** get groups of individual lines, arranged in six "spiral arm" arrays (as
+ * described below) to represent a board with the given radius
  *
- * the principle of single ownership is prioritized because any cyclic references
- * would preclude serialization (or at least create a lot of extra work). every
- * cell is referenced by at most 1 other cell. as a result, the relation is
- * casually referred to in terms of "ownership". these cell-cell relations are
- * expressed independent of line instances for simplicity, as accessing adjacent
- * cells indirectly via line instances creates extra work and serves no real
- * purpose.
+ * the board's raw json format is conceptually modeled as a spiral. the center
+ * cell is surrounded by six "arms" that cascade around the circumference of the
+ * board and represent consecutive cells. cells define/are defined by individual
+ * lines such that any given line is "owned" by exactly one cell, thus avoiding
+ * duplicate -- and potentially conflicting -- records.
  *
- * the conceptual model is further elaborated here, though the implementation
- * differs slightly for practical reasons as described below the diagram.
+ * generally, a given cell is said to "contribute" three unique lines to the
+ * board, and to "borrow" its remaining three lines from neighboring cells.
+ * there are two exceptions to this rule: 1) cells around the outer bounds of
+ * the board contribute four lines each, so as to close otherwise open edges;
+ * and 2) the center cell contributes all six of its own edges, as a result of
+ * the way that cells' own lines are arranged/assigned.
  *
- * the hex grid (also "board, "game board") is modeled as a branching structure
- * resembling a tree. the "root" cell lies in one corner of the board (e.g. the
- * left corner) and is not referenced, or "owned", by any other cell. "stem"
- * cells lie along the same row as the root cell (the root cell can also be
- * considered a stem cell). "branch" cells lie above or below the stem. a "leaf"
- * cell is a branch cell that does not reference any other cells (the "end" of a
- * branch).
+ * because of the fixed spatial/structural relation of lines and cells, and
+ * because the aggregate board state is defined in terms of line states, cells
+ * have no explicit implementation. spiral arms consist of individual lines, and
+ * cells are defined implicitly as groups of three (or four) consecutive lines,
+ * with the first single line in each arm owned by the cell at the center of the
+ * board.
  *
- *                        O     O     O
- *                       /     /     /
- *  "branch" cells" --> O     O     O     O
- *                     /     /     /     /
- *    "root" cell --> O --- O --- O --- O --- O <-- "stem" cells
- *                     \     \     \     \
- *                      O     O     O     O <-,--- "leaf" cells
- *                       \     \     \       /
- *                        O     O     O <---'
- *
- * each stem cell (except the last) references exactly three other cells: the
- * next (adjacent) stem cell, one branch cell above it, and one branch cell
- * below it (branch cells are by definition positioned to the right of their
- * immediate parent). the last stem cell is both a stem and a leaf.
- *
- * in practice, leaf cells are simply branch cells with no children, and the
- * root cell is a stem cell with no parent. for these reasons this
- * implementation is built on the two base types only (stems & branches).
- * furthermore, note that all cells are structurally identical (described by the
- * single cell_json interface), although the procedures for composing them
- * differ slightly.
+ * @param r - the radius of the board to be created
  */
-export interface cell_json {
-    lines: (line_json | null)[],
-    cells: (cell_json | null)[]
-}
+function make_board(r: number): board_json {
 
-/** get an object containing only raw cell data */
-function make_cell(): cell_json {
-    //  line arrays: [right, bottom-right, bottom-left, left, top-left, top-right]
-    return {
-        lines: [{state: 0}, {state: 0}, {state: 0}, {state: 0}, {state: 0}, {state: 0}],    //  every cell will maintain between 3 - 6 lines
-        cells: [null, null, null]       //  cells will only ever reference their children -> up, rt, dn
-    };
-}
+    //  total number of cells "above" center in each arm
+    //  use (r - 1) * r / 2 instead of r * (r + 1) /2 to exclude the last ring
+    const height = (r - 1) * r / 2;
 
-/** get an object representing a cell in a branch */
-function make_branch_cell(length: number, dir: number): cell_json {
-    const cell = make_cell();
-    if(length) {
-        const child = make_branch_cell(length - 1, dir);
-        child.lines[opps[dir]] = null;
-        cell.cells[dir] = child;
-    }
-    return cell;
-}
+    //  3 lines/cell in each ring below r
+    //  4 lines/cell in last ring
+    //  1 line for center cell (in each arm)
+    let count = 3 * height + 4 * r + 1;
 
-/** get an object representing a cell in the stem (main/middle row).
- *
- * @param length - the number of cells in the stem after this one
- */
-export function make_stem_cell(length: number): cell_json {
-    //  set the global radius reference & associated flag
-    let resetRadius = false;
-    if(radius === -1) {
-        //  overall board size must be an odd number
-        if(!(length % 2)) {
-            console.warn(`hex grid size must be an odd number, but ${length} is even\nusing ${length + 1} instead`);
-            length++;
-        }
-        radius = (length - 1) / 2;
-        resetRadius = true;
+    //  initialize the board and populate arms with lines
+    const b: board_json = [[], [], [], [], [], []];
+    for(let l = 0; l <= count; l++) {
+        b[0][l] = {filled: false, asserted: false};
+        b[1][l] = {filled: false, asserted: false};
+        b[2][l] = {filled: false, asserted: false};
+        b[3][l] = {filled: false, asserted: false};
+        b[4][l] = {filled: false, asserted: false};
+        b[5][l] = {filled: false, asserted: false};
     }
 
-    const cell = make_cell();
-    if(length) {
-        //  construct next stem & branches
-        //  branch lengths are never more than the grid radius
-        const branchSize: number = Math.min(length - 1, radius);
-        const next = make_stem_cell(length - 1);
-        const topBranch = make_branch_cell(branchSize, up);
-        const bottomBranch = make_branch_cell(branchSize, dn);
-
-        //  assign references to 'cell'
-        cell.cells[rt] = next;
-        cell.cells[up] = topBranch;
-        cell.cells[dn] = bottomBranch;
-
-        //  replace immediate edge references
-        //  these may be redundant with the loop below
-        next.lines[lf] = null;
-        topBranch.lines[up_op] = null;
-        bottomBranch.lines[dn_op] = null;
-
-        //  replace references in bordering branches
-        const nextUpper = smear_branch(next, up);
-        const nextLower = smear_branch(next, dn);
-
-        for(let i = 0; i < branchSize; i++) {   //  'length' is not valid here because branches toward the right of the board have fewer cells
-            nextUpper[i].lines[dn_op] = null;
-            nextUpper[i].lines[lf] = null;
-
-            nextLower[i].lines[up_op] = null;
-            nextLower[i].lines[lf] = null;
-        }
-    }
-
-    //  if all recursive calls are complete, reset the radius variable
-    if(resetRadius) {
-        radius = -1;
-    }
-
-    return cell;
+    return b;
 }
 
-/** aggregate all cells in a branch into a flat array for easier iteration */
-function smear_branch(branch: cell_json, side: number): cell_json[] {
-    const recurse: cell_json | null = branch.cells[side];
-    if(recurse !== null) {
-        return [branch, ...smear_branch(recurse, side)];
-    }
-    return [branch];
-}
+export {board_json, line_json, make_board};

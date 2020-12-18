@@ -1,5 +1,4 @@
-import Cell from './Cell.js';
-import Line, { LineState } from './Line.js';
+import Line  from './Line.js';
 
 let depth: number = 0;
 class SLNode {
@@ -9,7 +8,6 @@ class SLNode {
     coords: [number, number];
 
     lines: Line[] = [];  //  a node is the intersection
-    cells: Cell[] = [];
 
     path: Path2D = new Path2D;
 
@@ -23,9 +21,12 @@ class SLNode {
             this.lines.push(line);
         }
     }
-    addCell(cell: Cell) {
-        if(!this.cells.includes(cell)) {
-            this.cells.push(cell);
+    removeLine(line: Line): void {
+        let i = 0;
+        for(; i < this.lines.length; i++) {
+            if(this.lines[i] === line) {
+                this.lines.splice(i, 1);
+            }
         }
     }
 
@@ -41,7 +42,7 @@ class SLNode {
     get filledCount(): number {
         let c = 0;
         for(let i = 0; i < this.lines.length; i++) {
-            if(this.lines[i].asserted && this.lines[i].state) {
+            if(this.lines[i].asserted && this.lines[i].filled) {
                 c++;
             }
         }
@@ -54,7 +55,9 @@ class SLNode {
             if(!this.lines[i].asserted) {
                 return true;
             }
-            c += this.lines[i].state;
+            if(this.lines[i].filled) {
+                c++;
+            }
         }
         return c === 2 || c === 0;
     }
@@ -101,69 +104,12 @@ class SLNode {
         depth--;
     }
 
-    /** get lines opposing the given 'refLine', regardless of state */
-    getOpposingLines(refLine: Line, state?: LineState): Line[] {
-        // let opposing: Line[] = this.lines.filter(line => line !== refLine);
-        // if(state !== undefined) {
-        //     opposing = opposing.filter(line => line.state & state);
-        // }
-
-        //  get index of current line for reference
-        let ind = this.lines.indexOf(refLine);
-        if(ind < 0) {
-            console.warn('line %o does not belong to node %o', refLine, this);
-            return [];
-        }
-
-        const [left, right] = [this.lines[(ind + 1) % 3], this.lines[(ind + 2 % 3)]];
-        if(state === undefined) {
-            return [left, right];
-        }
-
-        let opposing: Line[] = [];
-        let next = 0;
-        if(left.state === state) {
-            opposing[0] = left;
-            next = 1;
-        }
-        if(right.state === state) {
-            opposing[next] = right;
-        }
-        return opposing;
-
-        // for(let i = 0; i < this.lines.length; i++) {
-        //     if(i === ind) {
-        //         continue;
-        //     }
-        //     //  this state condition may not be implemented correctly -- needs testing
-        //     if(state !== undefined && !(this.lines[i].state & state)) {
-        //         continue;
-        //     }
-        //     opposing.push(this.lines[i]);
-        // }
-
-        // return opposing;
-    }
-    getNextLineInPath(refLine: Line): Line | null {
-        let filled: Line[] = this.getOpposingLines(refLine, LineState.LINE);
-        if(filled.length !== 1) {
-            return null;
-        }
-        return filled[0];
-    }
 
     get x(): number {
         return this.coords[0];
     }
-    set x(x: number) {
-        this.coords[0] = x;
-    }
-
     get y(): number {
         return this.coords[1];
-    }
-    set y(y: number) {
-        this.coords[1] = y;
     }
 }
 
