@@ -252,7 +252,7 @@ class SlitherLinkGame {
                     //  nodes are always defined
                     if(cellRefs[0]) {
                         if(h === hMax) {
-                            nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[1]][1]);
+                            nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[0]][1]);
                         }
                         else {
                             nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
@@ -264,7 +264,7 @@ class SlitherLinkGame {
                     if(dh > 1) {
                         nodeRefs[1] = cellRefs[1].lines[offsets[5]].nodes[0];
                         nodeRefs[2] = cellRefs[1].lines[offsets[4]].nodes[0];
-                        nodeRefs[3] = cellRefs[2].lines[offsets[0]].nodes[0];
+                        nodeRefs[3] = cellRefs[2].lines[offsets[5]].nodes[0];
                     }
                     else {
                         nodeRefs[1] = cellRefs[1].lines[offsetsForSide[(s + 5) % 6][0]].nodes[0];
@@ -327,7 +327,6 @@ class SlitherLinkGame {
                     }
 
                     const cell = new Cell(grid, canv, ownLines, lineRefs);
-                    cell.count = dh;
 
                     //  add lines to container array (mainly used for rendering)
                     let lineCount = this.lines.length;
