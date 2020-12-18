@@ -53,8 +53,8 @@ class SlitherLinkGame {
      */
     cells: Cell[] = [];
 
-    private readonly lines: Line[];
-    private nodes: SLNode[];
+    private readonly lines: Line[] = [];
+    private readonly nodes: SLNode[] = [];
 
     /** construct SlitherLinkGame with a given board size
      *
@@ -69,10 +69,6 @@ class SlitherLinkGame {
         this.cellCount = _3r * (r + 1) + 1;
         this.lineCount = _3r * (_3r + 5) + 6;
         this.nodeCount = 6 * r * (r + 2) + 6;
-
-        this.board = new Array(this.cellCount);
-        this.lines = [];
-        this.nodes = new Array(this.nodeCount);
 
         //  define event listeners on canvas element
         // canvas.addEventListener('mousemove', this.handleMouseMove.bind(this), false);
@@ -249,17 +245,11 @@ class SlitherLinkGame {
 
                     //  define node refs
                     //  new nodes will be constructed where necessary so that 6
-                    //  nodes are always defined
-                    if(cellRefs[0]) {
-                        if(h === hMax) {
-                            nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[0]][1]);
-                        }
-                        else {
-                            nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
-                        }
-                    }
-                    else {
-                        nodeRefs[0] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[0]][0], canv[1] + Cell.nodeOffsets[offsets[0]][1]);
+                    //  nodes are always defined (see following loop)
+                    //  though note that nodes 1 & 2 will always be defined via
+                    //  neighboring cell ref in the current model/implementation
+                    if(cellRefs[0] && h !== hMax) {
+                        nodeRefs[0] = cellRefs[0].lines[offsets[4]].nodes[0];
                     }
                     if(dh > 1) {
                         nodeRefs[1] = cellRefs[1].lines[offsets[5]].nodes[0];
@@ -273,22 +263,23 @@ class SlitherLinkGame {
                         if(cellRefs[2]) {
                             nodeRefs[3] = cellRefs[2].lines[offsetsForSide[(s + 5) % 6][0]].nodes[0];
                         }
-                        else {
-                            nodeRefs[3] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[3]][0], canv[1] + Cell.nodeOffsets[offsets[3]][1]);
+                    }
+
+                    //  construct new nodes instances as necessary and add to aggregate node container
+                    let nodeCount = this.nodes.length;
+                    for(let i = 0; i < 6; i++) {
+                        if(!nodeRefs[i]) {
+                            nodeRefs[i] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[i]][0], canv[1] + Cell.nodeOffsets[offsets[i]][1]);
+                            this.nodes[nodeCount++] = nodeRefs[i];
                         }
                     }
-                    nodeRefs[4] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[4]][0], canv[1] + Cell.nodeOffsets[offsets[4]][1]);
-                    nodeRefs[5] = new SLNode(canv[0] + Cell.nodeOffsets[offsets[5]][0], canv[1] + Cell.nodeOffsets[offsets[5]][1]);
 
                     //  define line refs
-                    //  own lines will always be defined
                     //  refs from neighboring cells will always be defined
-                    //  lines will not be constructed where no non-own line refs are available
+                    //  lines will not be constructed where no non-own line refs are not available
                     //  in these cases, a subsequent neighboring cell is expected to define the ref once it is constructed
                     //  e.g. (canonical) line 2 may be undefined if cellRefs[2] is undefined
                     //  also, (canonical) line 3 is frequently left undefined
-                    ownLines[0] = new Line(raw[a][l], nodeRefs[0], nodeRefs[1]);
-                    lineRefs[offsets[0]] = ownLines[0];
                     if(dh > 1) {
                         lineRefs[offsets[1]] = cellRefs[1].lines[offsets[4]];
                         lineRefs[offsets[2]] = cellRefs[2].lines[offsets[5]];
@@ -302,8 +293,10 @@ class SlitherLinkGame {
                     else {
                         lineRefs[offsets[1]] = cellRefs[1].lines[offsetsForSide[(s + 5) % 6][5]];
                     }
+                    ownLines[0] = new Line(raw[a][l], nodeRefs[0], nodeRefs[1]);
                     ownLines[1] = new Line(raw[a][l + 1], nodeRefs[5], nodeRefs[0]);
                     ownLines[2] = new Line(raw[a][l + 2], nodeRefs[4], nodeRefs[5]);
+                    lineRefs[offsets[0]] = ownLines[0];
                     lineRefs[offsets[4]] = ownLines[2];
                     lineRefs[offsets[5]] = ownLines[1];
 
@@ -311,6 +304,12 @@ class SlitherLinkGame {
                     if(r === radius) {
                         ownLines[3] = new Line(raw[a][l + 3], nodeRefs[3], nodeRefs[4]);
                         lineRefs[offsets[3]] = ownLines[3];
+                    }
+
+                    //  add own lines to aggregate line container
+                    let lineCount = this.lines.length;
+                    for(let i = 0; i < ownLines.length; i++) {
+                        this.lines[lineCount++] = ownLines[i];
                     }
 
                     //  assign newly created references to other cells as appropriate
@@ -327,15 +326,6 @@ class SlitherLinkGame {
                     }
 
                     const cell = new Cell(grid, canv, ownLines, lineRefs);
-
-                    //  add lines to container array (mainly used for rendering)
-                    let lineCount = this.lines.length;
-                    this.lines[lineCount++] = cell.ownLines[0];
-                    this.lines[lineCount++] = cell.ownLines[1];
-                    this.lines[lineCount++] = cell.ownLines[2];
-                    if(cell.ownLines[3]) {
-                        this.lines[lineCount++] = cell.ownLines[3];
-                    }
 
                     //  offset grid coordinates x & y by the board radius to
                     //  avoid negative indices
