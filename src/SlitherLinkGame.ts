@@ -825,26 +825,48 @@ class SlitherLinkGame {
     handleClick(ev: MouseEvent): void {
 
         //  if the mouse is over a line, set the line's state and/or assertion
+        //
+        //  middle click always de-asserts a line
+        //
+        //  right click fills and left click empties, unless the line
+        //  already has that state, in which case it is de-asserted
         if(this.mouse) {
-            //  middle click always de-asserts a line
-            //
-            //  right click fills and left click empties, unless the line
-            //  already has that state, in which case it is de-asserted
+            //  if this click causes a line to be unset, no DOF updates are
+            //  necessary
+            //  otherwise, update DOF of both of the line's nodes
+            //  0 => no update needed
+            //  1 => redraw needed but not DOF
+            //  2 => redraw & DOF update needed
+            let update: number = 0;
             if(!this.mouse.asserted) {
                 if(ev.button === 2) {
-                    this.mouse.empty();
+                    this.mouse.empty()
+                    update = 2;
                 }
                 else if(ev.button === 0) {
-                    this.mouse.fill();
+                    this.mouse.fill()
+                    update = 2;
                 }
             }
             else if(ev.button === 1 || (ev.button && !this.mouse.state) || (this.mouse.state && !ev.button)) {
-                this.mouse.unset();
+                if(this.mouse.unset()) {
+                    update = 1;
+                }
             }
             else {
                 this.mouse.toggle();
+                update = 2;
             }
-            this.draw(400, 300);
+            if(update > 0) {
+                //  update DOF before draw so all resultant assertions are
+                //  reflected
+                if(update > 1) {
+                    //  update DOF
+                    this.mouse.nodes[0].updateDoF();
+                    this.mouse.nodes[1].updateDoF();
+                }
+                this.draw(400, 300);
+            }
         }
     }
     handleAuxClick(ev: MouseEvent): void {
@@ -966,6 +988,12 @@ class SlitherLinkGame {
         ctx.save();
         ctx.fillStyle = CSSColor.dimgray;
         for(let i = 0; i < this.nodes.length; i++) {
+            if(this.nodes[i].isValid()) {
+                ctx.fillStyle = CSSColor.green;
+            }
+            else {
+                ctx.fillStyle = CSSColor.red;
+            }
             ctx.fill(this.nodes[i].path);
         }
         ctx.restore();
