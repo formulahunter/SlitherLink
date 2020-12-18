@@ -335,7 +335,7 @@ class SlitherLinkGame {
                 }
 
                 //  increment l by the number of lines per cell in the current ring
-                if(r === radius - 1) {
+                if(r === radius) {
                     l += 4;
                 }
                 else {

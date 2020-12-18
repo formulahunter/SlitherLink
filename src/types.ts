@@ -44,11 +44,11 @@ function make_board(r: number): board_json {
     //  3 lines/cell in each ring below r
     //  4 lines/cell in last ring
     //  1 line for center cell (in each arm)
-    let count = 3 * height + 4 * (r + 1) + 1;
+    let count = 3 * height + 4 * r + 1;
 
     //  initialize the board and populate arms with lines
     const b: board_json = [[], [], [], [], [], []];
-    for(let l = 1; l <= count; l++) {
+    for(let l = 0; l <= count; l++) {
         b[0][l] = {filled: false, asserted: false};
         b[1][l] = {filled: false, asserted: false};
         b[2][l] = {filled: false, asserted: false};
