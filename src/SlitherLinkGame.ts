@@ -471,9 +471,6 @@ class SlitherLinkGame {
         //  set the given origin as the center of the board
         ctx.translate(x0, y0);
 
-        //  shift the context to center the hex grid
-        ctx.translate(-this.radius * Cell.DX * 2, 0);
-
         //  set line style for drawing cell outlines
         ctx.strokeStyle = CSSColor.black;
         ctx.lineWidth = 1;
