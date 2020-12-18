@@ -37,21 +37,13 @@ function make_board(r: number): board_json {
     //  use (r - 1) * r / 2 instead of r * (r + 1) /2 to exclude the last ring
     const height = (r - 1) * r / 2;
 
-    //  initialize the board with the center cell, represented by one line in
-    //  each arm
-    const b: board_json = [
-        [{filled: false, asserted: false}],
-        [{filled: false, asserted: false}],
-        [{filled: false, asserted: false}],
-        [{filled: false, asserted: false}],
-        [{filled: false, asserted: false}],
-        [{filled: false, asserted: false}]
-    ];
-
     //  3 lines/cell in each ring below r
     //  4 lines/cell in last ring
-    //  1 <= l <= count because each arm already has 1 line (center cell)
-    let count = 3 * height + 4 * (r + 1);
+    //  1 line for center cell (in each arm)
+    let count = 3 * height + 4 * (r + 1) + 1;
+
+    //  initialize the board and populate arms with lines
+    const b: board_json = [[], [], [], [], [], []];
     for(let l = 1; l <= count; l++) {
         b[0][l] = {filled: false, asserted: false};
         b[1][l] = {filled: false, asserted: false};
