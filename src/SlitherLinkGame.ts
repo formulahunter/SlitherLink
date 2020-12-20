@@ -121,6 +121,8 @@ class SlitherLinkGame {
             this.lines[a] = centerLines[a];
         }
         const center = new Cell([radius, radius], [0, 0], centerLines, centerLines);
+        this.board[radius][radius] = center;
+        this.cells[this.cells.length] = center;
 
         //  the center cell is the first element in every "arm" array so that
         //  accessing arms[a][0] returns the center cell for any a
