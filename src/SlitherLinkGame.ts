@@ -388,10 +388,10 @@ class SlitherLinkGame {
         //  entire canvas)
         this.draw(400, 300);
     }
-    //  manually save the current state on alt-click, otherwise pause/resume the simulation
     handleClick(ev: MouseEvent): void {
 
         //  if the mouse is over a line, set the line's state and/or assertion
+        //  also maintain state change history
         //
         //  middle click always de-asserts a line
         //
@@ -401,27 +401,38 @@ class SlitherLinkGame {
             //  if this click causes a line to be unset, no DOF updates are
             //  necessary
             //  otherwise, update DOF of both of the line's nodes
-            //  0 => no update needed
-            //  1 => redraw needed but not DOF
-            //  2 => redraw & DOF update needed
+            //  0 => no effective changes
+            //  1 => push changes to history & redraw
+            //  2 => push changes to history, update DoF, & redraw
             let update: number = 0;
-            if(!this.mouse.asserted) {
+            const change = {
+                line: this.mouse,
+                from: Object.assign({}, this.mouse.json)
+            };
+
+            //  visible state change is guaranteed on middle-mouse click if line
+            //  state is not already unset
+            if(ev.button !== 1 && !this.mouse.asserted) {
                 if(ev.button === 2) {
-                    this.mouse.empty()
-                    update = 2;
+                    this.mouse.empty();
                 }
                 else if(ev.button === 0) {
-                    this.mouse.fill()
-                    update = 2;
+                    this.mouse.fill();
                 }
+                //  visible state change is guaranteed on left- or right-click
+                change.to = Object.assign({}, this.mouse.json);
+                update = 2;
             }
-            else if(ev.button === 1 || (ev.button && !this.mouse.filled) || (this.mouse.filled && !ev.button)) {
+            else if(ev.button === 1 || (ev.button && !this.mouse.filled) || (!ev.button && this.mouse.filled)) {
                 if(this.mouse.unset()) {
+                    change.to = Object.assign({}, this.mouse.json);
                     update = 1;
                 }
             }
             else {
+                //  a state toggle guarantees visible state change by definition
                 this.mouse.toggle();
+                change.to = Object.assign({}, this.mouse.json);
                 update = 2;
             }
             if(update > 0) {
@@ -431,6 +442,28 @@ class SlitherLinkGame {
                     //  update DOF
                     this.mouse.nodes[0].updateDoF();
                     this.mouse.nodes[1].updateDoF();
+                }
+
+                if(change.to) {
+                    //  add to/update history as appropriate
+                    if(this.hist === null) {
+                        //  history is empty
+                        //  add the first entry
+                        this.hist = {...change, prev: null, next: null};
+
+                        //  enable "undo" action
+                    }
+                    else if(change.line === this.hist.line) {
+                        //  record multiple changes to a single line as a single
+                        //  net change
+                        this.hist.to = change.to;
+                    }
+                    else {
+                        //  push a new history entry
+                        change.prev = this.hist;
+                        this.hist.next = change;
+                        this.hist = change;
+                    }
                 }
                 this.draw(400, 300);
             }
