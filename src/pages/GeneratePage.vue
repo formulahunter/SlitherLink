@@ -4,7 +4,7 @@ import { Todo, Meta } from 'components/models';
 import ExampleComponent from 'components/ExampleComponent.vue';
 
 defineOptions({
-  name: 'IndexPage'
+  name: 'GeneratePage'
 });
 
 const todos = ref<Todo[]>([

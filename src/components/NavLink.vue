@@ -1,18 +1,18 @@
 <script setup lang="ts">
 defineOptions({
-  name: 'EssentialLink'
+  name: 'NavLink'
 });
 
-export interface EssentialLinkProps {
+export interface NavLinkProps {
   title: string;
   caption?: string;
   link?: string;
   icon?: string;
 };
 
-withDefaults(defineProps<EssentialLinkProps>(), {
+withDefaults(defineProps<NavLinkProps>(), {
   caption: '',
-  link: '#',
+  link: '',
   icon: '',
 });
 </script>
@@ -21,7 +21,6 @@ withDefaults(defineProps<EssentialLinkProps>(), {
   <q-item
     clickable
     tag="a"
-    target="_blank"
     :href="link"
   >
     <q-item-section

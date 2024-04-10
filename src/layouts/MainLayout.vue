@@ -1,54 +1,30 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import EssentialLink, { EssentialLinkProps } from 'components/EssentialLink.vue';
+import NavLink, { NavLinkProps } from 'components/NavLink.vue';
 
 defineOptions({
   name: 'MainLayout'
 });
 
-const linksList: EssentialLinkProps[] = [
+const linksList: NavLinkProps[] = [
   {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
+    title: 'Generate',
+    caption: 'Generate random boards & adjust game parameters',
+    icon: 'tune', //  tune, edit, refresh, sync
+    link: '/generate'
   },
   {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
+    title: 'Solve',
+    caption: 'Inspect game/board constraints & find solution',
+    icon: 'o_extension', //  extension, troubleshoot
+    link: '/solve'
   },
   {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
+    title: 'Appearance',
+    caption: 'Visual style settings',
+    icon: 'o_shape_line', // shape-line, polyline, format-shapes, hexagon, style
+    link: '/appearance'
   },
-  {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
-  }
 ];
 
 const leftDrawerOpen = ref(false);
@@ -72,26 +48,24 @@ function toggleLeftDrawer () {
         />
 
         <q-toolbar-title>
-          Quasar App
+          SlitherLink
         </q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
       </q-toolbar>
     </q-header>
 
     <q-drawer
       v-model="leftDrawerOpen"
-      show-if-above
       bordered
     >
       <q-list>
         <q-item-label
           header
         >
-          Essential Links
+          Navigation
         </q-item-label>
 
-        <EssentialLink
+        <NavLink
           v-for="link in linksList"
           :key="link.title"
           v-bind="link"
