@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { initBoard } from "src/gen";
 
 defineOptions({
   name: 'MainPage'
@@ -10,9 +11,9 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 const radius = ref(3);
 
 function generateBoard() {
-  // debounce form submit
-  // deactivate submit button
-  // indicate pending status, i.e. loading spinner
+  // debounce form submit:
+  // - deactivate submit button
+  // - indicate pending status, i.e. loading spinner
 
   // get radius
   // get seed
@@ -20,6 +21,10 @@ function generateBoard() {
   console.log(`generating game board with radius \`${radius.value}\``);
 
   // spawn new values & replace existing in cells
+  const board = initBoard(radius.value);
+  ///@ts-ignore
+  window.board = board;
+
   // reset all cell/line/node states
 }
 
