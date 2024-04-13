@@ -73,26 +73,26 @@ export function initBoard(R: number): GameBoardData {
 
   const lines = new Array(lineCount);
 
-//  cache nodes, lines, and neighbors per cell, indexed by relative position
-//  wrt the cell
+  //  cache nodes, lines, and neighbors per cell, indexed by relative position
+  //  wrt the cell
   const nodesOfCell = new Array(cellCount);
   const linesOfCell = new Array(cellCount);
   const neighborsOfCell = new Array(cellCount);
 
-//  populate `linesOfCell`, `nodesOfCell`, & `neighborsOfCell`
+  //  populate `linesOfCell`, `nodesOfCell`, & `neighborsOfCell`
   for(let i = 0; i < cellCount; i++) {
-    const [x, y] = cardinalToAxial(R, i);
-    if(!isOnBoard(R, x, y)) {
+    const [col, row] = cardinalToAxial(R, i);
+    if(!isOnBoard(R, col, row)) {
       continue;
     }
 
-    const n0 = 2 * (span + 3) * y + x;
+    const n0 = 2 * (span + 3) * row + col;
     const n3 = n0 + 2 * span + 5;
     //  index nodes beginning at upper left ("north-west") and progressing
     //  counter-clockwise
     nodesOfCell[i] = [n0, n0 + 1, n0 + 2, n3 + 2, n3 + 1, n3];
 
-    const l0 = (3 * (span + 3) - 1) * y + 3 * x;
+    const l0 = (3 * (span + 3) - 1) * row + 3 * col;
     const l4 = l0 + 3 * (span + 3);
     //  index lines beginning at left ("west") and progressing counter-clockwise
     linesOfCell[i] = [l0, l0 + 1, l0 + 2, l0 + 3, l4, l4 - 2];
@@ -119,23 +119,23 @@ export function initBoard(R: number): GameBoardData {
 
     //  index neighbors beginning at left ("west") and progressing counter-clockwise
     neighborsOfCell[i] = [-1, -1, -1, -1, -1, -1];
-    if(isOnBoard(R, x - 1, y)) {
-      neighborsOfCell[i][0] = axialToCardinal(R, x - 1, y);
+    if(isOnBoard(R, col - 1, row)) {
+      neighborsOfCell[i][0] = axialToCardinal(R, col - 1, row);
     }
-    if(isOnBoard(R, x, y - 1)) {
-      neighborsOfCell[i][1] = axialToCardinal(R, x, y - 1);
+    if(isOnBoard(R, col, row - 1)) {
+      neighborsOfCell[i][1] = axialToCardinal(R, col, row - 1);
     }
-    if(isOnBoard(R, x + 1, y - 1)) {
-      neighborsOfCell[i][2] = axialToCardinal(R, x + 1, y - 1);
+    if(isOnBoard(R, col + 1, row - 1)) {
+      neighborsOfCell[i][2] = axialToCardinal(R, col + 1, row - 1);
     }
-    if(isOnBoard(R, x + 1, y)) {
-      neighborsOfCell[i][3] = axialToCardinal(R, x + 1, y);
+    if(isOnBoard(R, col + 1, row)) {
+      neighborsOfCell[i][3] = axialToCardinal(R, col + 1, row);
     }
-    if(isOnBoard(R, x, y + 1)) {
-      neighborsOfCell[i][4] = axialToCardinal(R, x, y + 1);
+    if(isOnBoard(R, col, row + 1)) {
+      neighborsOfCell[i][4] = axialToCardinal(R, col, row + 1);
     }
-    if(isOnBoard(R, x - 1, y + 1)) {
-      neighborsOfCell[i][5] = axialToCardinal(R, x - 1, y + 1);
+    if(isOnBoard(R, col - 1, row + 1)) {
+      neighborsOfCell[i][5] = axialToCardinal(R, col - 1, row + 1);
     }
   }
 
