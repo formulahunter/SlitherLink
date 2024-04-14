@@ -75,7 +75,13 @@ export function getVertCount(r: number): number {
   return (6 * r + 12) * r + 6;
 }
 
-export function initBoard(R: number): GameStruct {
+/**
+ *
+ * @param R
+ * @param cellSpacing - distance (in rel. coords) between cell centers
+ * @param cellRadius - radius from center to edge as multiple of `cellSpacing / 2` (i.e. `0.98` will leave a small gap between adjascent cells)
+ */
+export function initBoard(R: number, cellSpacing: number, cellRadius: number): GameStruct {
 
   const D = 2 * R;
   const S = D + 1;
@@ -102,6 +108,28 @@ export function initBoard(R: number): GameStruct {
     return coordsAreOnBoard(coordsOfId(id));
   }
 
+  const deg60 = Math.PI / 3;
+  const cos60 = Math.cos(deg60);
+  const sin60 = Math.sin(deg60);
+
+  const i0 = R + 1;
+  const j0 = R;
+  function gridToRel(gridCoord: Coord): Coord {
+    return [
+      cellSpacing * ((gridCoord[0] - i0) + (gridCoord[1] - j0) * cos60),
+      cellSpacing * (gridCoord[1] - j0) * sin60,
+    ];
+  }
+
+  const vertOffsets: Coord[] = [];
+  for(let i = -2.5; i < 3; i++) {
+    const radians = i * deg60;
+    vertOffsets.push([
+      (cellRadius / (2 * Math.cos(deg60 / 2))) * cellSpacing * Math.cos(radians),
+      (cellRadius / (2 * Math.cos(deg60 / 2))) * cellSpacing * Math.sin(radians),
+    ]);
+  }
+
   const G = W * H;
   const C = getCellCount(R);
   const L = getLineCount(R);
@@ -109,27 +137,9 @@ export function initBoard(R: number): GameStruct {
 
   /** flat, dense array of vertex objects, indexed by id */
   const verts: GameVert[] = [];
-  for(let vid = 0; vid < V; vid++) {
-    const v: GameVert = {
-      id: vid,
-      pos: {
-        rel: [0, 0],
-      },
-      l: [],
-    };
-    verts[vid] = v;
-  }
 
   /** flat, dense array of line objects, indexed by id */
   const lines: GameLine[] = [];
-  for(let lid = 0; lid < L; lid++) {
-    const l: GameLine = {
-      id: lid,
-      v: [verts[0], verts[0]],
-      c: [],
-    }
-    lines[lid] = l;
-  }
 
   /** flat, sparse array of cell objects; indexed by id */
   const cells: GameCell[] = [];
@@ -143,7 +153,8 @@ export function initBoard(R: number): GameStruct {
   for(let j = 0; j < H; j++) {
     grid[j] = new Array(W);
     for(let i = 0; i < W; i++) {
-      if(!coordsAreOnBoard([i, j])) {
+      const gridCoord: Coord = [i, j];
+      if(!coordsAreOnBoard(gridCoord)) {
         continue;
       }
 
@@ -151,12 +162,14 @@ export function initBoard(R: number): GameStruct {
       grid[j][i] = cid;
       cellIds.push(cid);
 
+      const relCoord = gridToRel(gridCoord);
+
       //  each cell has lines `l`, vertices `v`, and neighbors `n`
       const c: GameCell = {
         id: cid,
         pos: {
-          grid: [i, j],
-          rel: [0, 0],
+          grid: gridCoord,
+          rel: relCoord,
         },
         l: [],
         v: [],
@@ -164,16 +177,201 @@ export function initBoard(R: number): GameStruct {
       };
       cells[cid] = c;
 
-      //  get/define cell lines & cell neighbors
-      if(coordsAreOnBoard([i - 1, j])) {
-        const n = cells[idAtCoords([i - 1, j])];
-        c.n[0] = n;
-        n.n[3] = c;
-        c.l[0] = n.l[3];
+      //  get/define all cell neighbors, lines, & vertices
+
+      const n1 = j > 0 && cells[grid[j - 1][i]];
+      const n2 = j > 0 && cells[grid[j - 1][i + 1]];
+      const n0 = i > 0 && cells[grid[j][i - 1]];
+      if(n1) {
+        //  define n1 & reciprocal
+        c.n[1] = n1;
+        n1.n[4] = c;
+
+        //  get existing l1 object ref & add c to it
+        c.l[1] = n1.l[4];
+        c.l[1].c[1] = c;
+
+        //  get existing v0 and v1 object refs
+        c.v[0] = n1.v[4];
+        c.v[1] = n1.v[3];
       }
-      // else {
-      //   c.l[0] =
-      // }
+      else {
+        if(n0) {
+          //  get existing v0 object ref
+          c.v[0] = n0.v[2];
+        }
+        else {
+          //  define v0 & add to c
+          const v0: GameVert = {
+            id: verts.length,
+            pos: {
+              rel: [
+                relCoord[0] + vertOffsets[0][0],
+                relCoord[1] + vertOffsets[0][1],
+              ],
+            },
+            l: [],
+          };
+          verts[v0.id] = v0;
+          c.v[0] = v0;
+        }
+        if(n2) {
+          //  get existing v1 object ref
+          c.v[1] = n2.v[5];
+        }
+        else {
+          //  define v1 & add to c
+          const v1: GameVert = {
+            id: verts.length,
+            pos: {
+              rel: [
+                relCoord[0] + vertOffsets[1][0],
+                relCoord[1] + vertOffsets[1][1],
+              ],
+            },
+            l: [],
+          };
+          verts[v1.id] = v1;
+          c.v[1] = v1;
+        }
+      }
+      if(n2) {
+        //  define n2 & reciprocal
+        c.n[2] = n2;
+        n2.n[5] = c;
+
+        //  get existing l2 object ref & add c to it
+        c.l[2] = n2.l[5];
+        c.l[2].c[1] = c;
+
+        //  get existing v2 object ref
+        c.v[2] = n2.v[4];
+      }
+      else {
+        const v2: GameVert = {
+          id: verts.length,
+          pos: {
+            rel: [
+              relCoord[0] + vertOffsets[2][0],
+              relCoord[1] + vertOffsets[2][1],
+            ],
+          },
+          l: [],
+        };
+        verts[v2.id] = v2;
+        c.v[2] = v2;
+      }
+      if(n0) {
+        //  define n0 & reciprocal
+        c.n[0] = n0;
+        n0.n[3] = c;
+
+        //  get existing l0 object ref & add c to it
+        c.l[0] = n0.l[3];
+        c.l[0].c[1] = c;
+
+        //  get existing v5 object ref
+        c.v[5] = n0.v[3];
+      }
+      else {
+        const v5: GameVert = {
+          id: verts.length,
+          pos: {
+            rel: [
+              relCoord[0] + vertOffsets[5][0],
+              relCoord[1] + vertOffsets[5][1],
+            ],
+          },
+          l: [],
+        };
+        verts[v5.id] = v5;
+        c.v[5] = v5;
+      }
+
+      //  define verts 3 and 4
+      {
+        const v4: GameVert = {
+          id: verts.length,
+          pos: {
+            rel: [
+              relCoord[0] + vertOffsets[4][0],
+              relCoord[1] + vertOffsets[4][1],
+            ],
+          },
+          l: [],
+        };
+        verts[v4.id] = v4;
+        c.v[4] = v4;
+
+        const v3: GameVert = {
+          id: verts.length,
+          pos: {
+            rel: [
+              relCoord[0] + vertOffsets[3][0],
+              relCoord[1] + vertOffsets[3][1],
+            ],
+          },
+          l: [],
+        };
+        verts[v3.id] = v3;
+        c.v[3] = v3;
+      }
+
+      //  define lines 0, 1, and 2 (where not available from neighboring cells)
+      if(!c.l[0]) {
+        const l0: GameLine = {
+          id: lines.length,
+          c: [undefined, c],
+          v: [c.v[5], c.v[0]],
+        };
+        lines[l0.id] = l0;
+        c.l[0] = l0;
+      }
+      if(!c.l[1]) {
+        const l1: GameLine = {
+          id: lines.length,
+          c: [undefined, c],
+          v: [c.v[0], c.v[1]],
+        };
+        lines[l1.id] = l1;
+        c.l[1] = l1;
+      }
+      if(!c.l[2]) {
+        const l2: GameLine = {
+          id: lines.length,
+          c: [undefined, c],
+          v: [c.v[1], c.v[2]],
+        };
+        lines[l2.id] = l2;
+        c.l[2] = l2;
+      }
+
+      //  define lines 3, 4, and 5
+      {
+        const l3: GameLine = {
+          id: lines.length,
+          c: [c, undefined],
+          v: [c.v[3], c.v[2]],
+        };
+        lines[l3.id] = l3;
+        c.l[3] = l3;
+
+        const l5: GameLine = {
+          id: lines.length,
+          c: [c, undefined],
+          v: [c.v[5], c.v[4]],
+        };
+        lines[l5.id] = l5;
+        c.l[5] = l5;
+
+        const l4: GameLine = {
+          id: lines.length,
+          c: [c, undefined],
+          v: [c.v[4], c.v[3]],
+        };
+        lines[l4.id] = l4;
+        c.l[4] = l4;
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue';
+import { initBoard } from 'src/model';
+import { computed, onMounted, ref } from 'vue';
 
 
 defineOptions({
@@ -22,7 +23,8 @@ const counts = computed(() => ({
 
 onMounted(() => {
 
-  type Coord = [number, number];
+  const board = initBoard(props.r, 2, 0.98);
+  console.log(board);
 
   function createSVG(el: string) {
     return document.createElementNS('http://www.w3.org/2000/svg', el);
