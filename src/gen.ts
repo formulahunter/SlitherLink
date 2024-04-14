@@ -14,34 +14,17 @@ export interface GameBoardData {
   cellsShuffled: number[];
 }
 
-export function fac_quot(n: number, d: number): number {
-  let prod = 1;
-  for(let i = n; i > d; i--) {
-    prod *= i;
-  }
-  return prod;
-}
-export function fac(n: number): number {
-  return fac_quot(n, 1);
-}
-export function nChK(n: number, k: number): number {
-  if(k < 0 || k > n) {
-    return 0;
-  }
-  return fac_quot(n, k) / fac(n - k);
-}
-
 export function cellCountForRadius(rad: number): number {
-  if(rad === 0) {
-    return 1;
-  }
-  return 1 + 6 * nChK(rad + 1, rad - 1);
+  //  6((1/2)(r^2 - r)) + 1
+  return (3 * rad + 3) * rad + 1;
 }
 export function lineCountForRadius(rad: number): number {
-  return 3 * (rad - 1) * rad / 2 + 4 * rad + 1;
+  //  6((3/2)r^2 + (5/2)r + 1)
+  return (9 * rad + 15) * rad + 6;
 }
 export function nodeCountForRadius(rad: number): number {
-  return 6 * rad * (rad + 2) + 6;
+  //  6(r^2 + 2r + 1)
+  return  (6 * rad + 12) * rad + 6;
 }
 
 export function cardinalToAxial(R: number, i: number): [number, number] {
