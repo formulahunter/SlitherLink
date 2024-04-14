@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { initBoard } from "src/gen";
+import SVGGameBoard from 'components/SVGGameBoard.vue';
 
 defineOptions({
   name: 'MainPage'
@@ -10,23 +10,23 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 
 const radius = ref(3);
 
-function generateBoard() {
-  // debounce form submit:
-  // - deactivate submit button
-  // - indicate pending status, i.e. loading spinner
-
-  // get radius
-  // get seed
-
-  console.log(`generating game board with radius \`${radius.value}\``);
-
-  // spawn new values & replace existing in cells
-  const board = initBoard(radius.value);
-  ///@ts-ignore
-  window.board = board;
-
-  // reset all cell/line/node states
-}
+// function generateBoard() {
+//   // debounce form submit:
+//   // - deactivate submit button
+//   // - indicate pending status, i.e. loading spinner
+//
+//   // get radius
+//   // get seed
+//
+//   console.log(`generating game board with radius \`${radius.value}\``);
+//
+//   // spawn new values & replace existing in cells
+//   const board = initBoard(radius.value);
+//   ///@ts-ignore
+//   window.board = board;
+//
+//   // reset all cell/line/node states
+// }
 
 </script>
 
@@ -34,8 +34,7 @@ function generateBoard() {
   <q-page class="q-pa-md">
     <div class="row page-row items-stretch justify-between">
       <div class="col view">
-        <svg viewbox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        </svg>
+        <SVGGameBoard :r="radius" />
       </div>
       <div class="col-auto inputs">
         <q-form @submit="generateBoard">
@@ -78,6 +77,7 @@ function generateBoard() {
   border-left: 2pt solid black
 
 .view svg
+  border: 1pt solid black
   aspect-ratio: 1.6
 
 .radius-input
