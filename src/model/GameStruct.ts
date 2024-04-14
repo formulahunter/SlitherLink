@@ -2,6 +2,16 @@ type Coord = [ number, number ];
 
 export interface GameStruct {
   R: number;
+  const: {
+    D: number;
+    S: number;
+    W: number;
+    H: number;
+    G: number;
+    C: number;
+    L: number;
+    V: number;
+  };
   cells: GameCell[];
   lines: GameLine[];
   verts: GameVert[];
@@ -79,9 +89,8 @@ export function getVertCount(r: number): number {
  *
  * @param R
  * @param cellSpacing - distance (in rel. coords) between cell centers
- * @param cellRadius - radius from center to edge as multiple of `cellSpacing / 2` (i.e. `0.98` will leave a small gap between adjascent cells)
  */
-export function initBoard(R: number, cellSpacing: number, cellRadius: number): GameStruct {
+export function initBoard(R: number, cellSpacing: number): GameStruct {
 
   const D = 2 * R;
   const S = D + 1;
@@ -121,12 +130,13 @@ export function initBoard(R: number, cellSpacing: number, cellRadius: number): G
     ];
   }
 
+  const offsetRadius = cellSpacing / (2 * Math.cos(deg60 / 2));
   const vertOffsets: Coord[] = [];
   for(let i = -2.5; i < 3; i++) {
     const radians = i * deg60;
     vertOffsets.push([
-      (cellRadius / (2 * Math.cos(deg60 / 2))) * cellSpacing * Math.cos(radians),
-      (cellRadius / (2 * Math.cos(deg60 / 2))) * cellSpacing * Math.sin(radians),
+      offsetRadius * Math.cos(radians),
+      offsetRadius * Math.sin(radians),
     ]);
   }
 
@@ -377,6 +387,7 @@ export function initBoard(R: number, cellSpacing: number, cellRadius: number): G
 
   return {
     R,
+    const: { D, S, W, H, G, C, L, V },
     cells,
     lines,
     verts,
