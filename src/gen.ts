@@ -14,15 +14,21 @@ export interface GameBoardData {
   cellsShuffled: number[];
 }
 
-export function fac(n: number): number {
+export function fac_quot(n: number, d: number): number {
   let prod = 1;
-  for(let i = n; i > 1; i--) {
+  for(let i = n; i > d; i--) {
     prod *= i;
   }
   return prod;
 }
+export function fac(n: number): number {
+  return fac_quot(n, 1);
+}
 export function nChK(n: number, k: number): number {
-  return fac(n) / (fac(k) * fac(n - k));
+  if(k < 0 || k > n) {
+    return 0;
+  }
+  return fac_quot(n, k) / fac(n - k);
 }
 
 export function cellCountForRadius(rad: number): number {
