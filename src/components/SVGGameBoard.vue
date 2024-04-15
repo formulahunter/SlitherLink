@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import SVGCell from 'components/SVGCell.vue';
-import { GameCell, GameLine, GameVert, initBoard } from 'src/model';
-import {computed, onMounted, shallowRef} from 'vue';
+import SVGLine from 'components/SVGLine.vue';
+import { GameCell, GameLine, GameVert, initBoard, LineState } from 'src/model';
+import { computed, onMounted, shallowRef } from 'vue';
 
 
 defineOptions({
@@ -45,6 +46,7 @@ onMounted(() => {
   <div>
     <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg">
       <SVGCell v-for="c of cells" :cell="c" :r="cellRadius" :key="c.id" />
+      <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :key="l.id" />
     </svg>
   </div>
 </template>
