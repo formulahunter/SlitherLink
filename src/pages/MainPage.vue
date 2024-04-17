@@ -37,23 +37,36 @@ const radius = ref(3);
         <SVGGameBoard :r="radius" />
       </div>
       <div class="col-auto inputs">
-        <q-form @submit="generateBoard">
-          <q-card square>
-            <q-card-section>
-              <div class="row justify-start">
-                <label for="radius_input">Radius: {{ radius }}</label>
-              </div>
-              <div class="row justify-end">
-                <q-slider id="radius_input" v-model="radius" :min="0" :max="6" :step="1" snap label markers
-                          :marker-labels="radiusLabels" class="radius-input"/>
-              </div>
-            </q-card-section>
-            <q-separator></q-separator>
-            <q-card-actions align="right">
-              <q-btn type="submit" label="Generate"></q-btn>
-            </q-card-actions>
-          </q-card>
-        </q-form>
+        <q-list bordered>
+          <q-expansion-item expand-separator group="main_nav" icon="tune" label="Generate" >
+            <q-form>
+              <q-card flat>
+                <q-card-section>
+                  <div class="row justify-start">
+                    <label for="radius_input">Radius: {{ radius }}</label>
+                  </div>
+                  <div class="row justify-end">
+                    <q-slider id="radius_input" v-model="radius" :min="0" :max="6" :step="1" snap label markers
+                              :marker-labels="radiusLabels" class="radius-input"/>
+                  </div>
+                </q-card-section>
+                <q-separator></q-separator>
+                <q-card-actions align="right">
+                  <q-btn label="Generate"></q-btn>
+                </q-card-actions>
+              </q-card>
+            </q-form>
+          </q-expansion-item>
+          <q-expansion-item expand-separator group="main_nav" icon="numbers" label="Enter Data" >
+
+          </q-expansion-item>
+          <q-expansion-item expand-separator group="main_nav" icon="o_extension" label="Solve" >
+
+          </q-expansion-item>
+          <q-expansion-item expand-separator group="main_nav" icon="o_shape_line" label="Appearance" >
+
+          </q-expansion-item>
+        </q-list>
       </div>
     </div>
   </q-page>
