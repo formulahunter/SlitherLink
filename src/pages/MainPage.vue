@@ -10,23 +10,12 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 
 const radius = ref(3);
 
-// function generateBoard() {
-//   // debounce form submit:
-//   // - deactivate submit button
-//   // - indicate pending status, i.e. loading spinner
-//
-//   // get radius
-//   // get seed
-//
-//   console.log(`generating game board with radius \`${radius.value}\``);
-//
-//   // spawn new values & replace existing in cells
-//   const board = initBoard(radius.value);
-//   ///@ts-ignore
-//   window.board = board;
-//
-//   // reset all cell/line/node states
-// }
+const navMenu = ref({
+  generate: false,
+  dataEntry: false,
+  solve: false,
+  appearance: false,
+});
 
 </script>
 
@@ -38,7 +27,7 @@ const radius = ref(3);
       </div>
       <div class="col-auto inputs">
         <q-list bordered>
-          <q-expansion-item expand-separator group="main_nav" icon="tune" label="Generate" >
+          <q-expansion-item v-model="navMenu.generate" group="main_nav" label="Generate" icon="tune" expand-separator >
             <q-form>
               <q-card flat>
                 <q-card-section>
@@ -57,13 +46,13 @@ const radius = ref(3);
               </q-card>
             </q-form>
           </q-expansion-item>
-          <q-expansion-item expand-separator group="main_nav" icon="numbers" label="Enter Data" >
+          <q-expansion-item v-model="navMenu.dataEntry" group="main_nav" label="Enter Data" icon="numbers" expand-separator >
 
           </q-expansion-item>
-          <q-expansion-item expand-separator group="main_nav" icon="o_extension" label="Solve" >
+          <q-expansion-item v-model="navMenu.solve" group="main_nav" label="Solve" icon="o_extension" expand-separator >
 
           </q-expansion-item>
-          <q-expansion-item expand-separator group="main_nav" icon="o_shape_line" label="Appearance" >
+          <q-expansion-item v-model="navMenu.appearance" group="main_nav" label="Appearance" icon="o_shape_line" expand-separator >
 
           </q-expansion-item>
         </q-list>
