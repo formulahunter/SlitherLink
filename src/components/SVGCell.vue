@@ -10,7 +10,10 @@ defineOptions({
 const props = defineProps<{
   cell: GameCell,
   r: number,
-}>()
+  state: number,
+}>();
+
+const stateColors = [ '#eeeeeeb0', '#af9d76b0', '#5e7da5b0', '#67a15db0' ];
 
 const polyVerts = computed(() => {
   let verts: [number, number][] = [];
@@ -34,9 +37,11 @@ const dStr = computed(() => {
 </script>
 
 <template>
-  <path :d="dStr" />
+  <path :d="dStr" :fill="stateColors[state]" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)" :data-verts="cell.v.map(v => v.id)"/>
 </template>
 
 <style scoped lang="sass">
+text.cell-id
+    font-size: 1px
 
 </style>
