@@ -24,6 +24,16 @@ const props = defineProps<{
 const viewBox = shallowRef<[number, number, number, number]>([-5, -5, 20, 20]);
 const viewBoxStr = computed(() => viewBox.value.join(' '));
 
+const deg60 = Math.PI / 3;
+const sin60 = Math.sin(deg60);
+
+const vertOffsets: [number, number][] = [];
+for(let i = -2.5; i < 3; i++) {
+  const radians = i * deg60;
+  vertOffsets.push([Math.cos(radians), Math.sin(radians)]);
+}
+const pathStr = 'M ' + vertOffsets.map(v => v[0] + ' ' + v[1]).join(' L ') + ' Z';
+
 const cells = shallowRef<GameCell[]>([]);
 const lines = shallowRef<GameLine[]>([]);
 const verts = shallowRef<GameVert[]>([]);
@@ -160,6 +170,10 @@ function addToPool(cid: number): UpdateIterator<number> {
 <template>
   <div>
     <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @click="stepSolution">
+      <defs>
+        <path id="cellPath" class="cell infill" :d="pathStr" :transform="`scale(${cellRadius * cellSpacing / (2 * Math.cos(deg60 / 2))})`" />
+        <line id="cellEdge" class="cell edge" x1="0" y1="-0.5" x2="0" y2="0.5" :transform="`scale(${cellRadius}) translate(${-cellRadius} 0)`" />
+      </defs>
       <SVGCell v-for="c of defCells" :cell="c" :r="cellRadius" :state="getCellState(c.id)" :key="c.id" @click.stop="() => addToPool(c.id)" />
       <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :onPath="l.c.filter(c => c && pool[c.id]).length === 1" :key="l.id" />
     </svg>

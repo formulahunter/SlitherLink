@@ -37,7 +37,11 @@ const dStr = computed(() => {
 </script>
 
 <template>
-  <path :d="dStr" :fill="stateColors[state]" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)" :data-verts="cell.v.map(v => v.id)"/>
+<!--  <path :d="dStr" :fill="stateColors[state]" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)" :data-verts="cell.v.map(v => v.id)"/>-->
+  <use href="#cellPath" :transform="`translate(${cell.pos.rel[0]} ${cell.pos.rel[1]})`"  :fill="stateColors[state]" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)" :data-verts="cell.v.map(v => v.id)" />
+  <g>
+    <use v-for="(l, i) of cell.l" href="#cellEdge" :transform="`translate(${cell.pos.rel[0]} ${cell.pos.rel[1]}) rotate(${i * 60})`" :data-id="l.id" stroke="#666666b0" stroke-width="0.1" />
+  </g>
 </template>
 
 <style scoped lang="sass">
