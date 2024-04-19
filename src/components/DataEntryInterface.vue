@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ComputedRef, Ref, ref } from 'vue';
+import { computed, ComputedRef, Ref, ref, toRaw } from 'vue';
 
 defineOptions({
   name: 'DataEntryInterface',
 });
+
+const imgEl: Ref<SVGImageElement | null> = ref(null);
 
 const imgFile: Ref<File | null> = ref(null);
 const imgSrc: ComputedRef<string> = computed(() => {
@@ -33,6 +35,11 @@ type MouseEventOnSVGWithLayerXY = MouseEvent & {
 }
 
 function setAlignParams(ev: MouseEventOnSVGWithLayerXY): void {
+  //  abort if no image yet loaded
+  if(!imgSrc.value) {
+    return;
+  }
+
   //  abort if all 4 values already defined
   const i = datumVals.value.length;
   if(i > 3) {
@@ -41,7 +48,7 @@ function setAlignParams(ev: MouseEventOnSVGWithLayerXY): void {
 
   const my: number = ev.layerY;
   if(i < 3) {
-    datumVals.value[i] = my;
+    datumVals.value[i] = my / imgEl.value.getBBox().height;
     if(i === 2) {
       params.value.h = datumVals.value[2] - datumVals.value[0];
       params.value.s = Math.round(params.value.h / (datumVals.value[1] - datumVals.value[0])) + 1;  //  s = round(h / (y1 - y0)) + 1
@@ -52,7 +59,9 @@ function setAlignParams(ev: MouseEventOnSVGWithLayerXY): void {
   }
   else if(i === 3) {
     const mx: number = ev.layerX;
-    datumVals.value[i] = mx - (my - datumVals.value[0]) * params.value.dx / params.value.dy;
+    datumVals.value[i] = (mx - (my - datumVals.value[0]) * params.value.dx / params.value.dy)  / imgEl.value.getBBox().width;
+    console.debug('datum values: %o', toRaw(datumVals.value));
+    console.debug('param values: %o', toRaw(params.value));
   }
 }
 
@@ -89,7 +98,7 @@ function updateLine(ev: MouseEventOnSVGWithLayerXY): void {
   <div style="position: relative">
     <div class="align">
       <svg @mousemove="updateLine" @click="setAlignParams">
-        <image ref="backdrop" v-if="imgSrc !== ''" :href="imgSrc" height="100%" :x="imgX" @load="centerImage" />
+        <image ref="imgEl" v-if="imgSrc !== ''" :href="imgSrc" height="100%" :x="imgX" @load="centerImage" />
         <g v-if="imgFile !== null">
           <line v-for="l of datumLines" :x1="l[0]" :y1="l[1]" :x2="l[2]" :y2="l[3]" />
         </g>
