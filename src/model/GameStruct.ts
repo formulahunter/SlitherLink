@@ -118,57 +118,6 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
   const L = getLineCount(R);
   const V = getVertCount(R);
 
-  //  constants - grid coordinate basis
-  const ij_0: Coord = [0, 0];
-  const i_0 = ij_0[0];
-  const j_0 = ij_0[1];
-  const ij_R: Coord = [R, R];
-  const i_R = ij_R[0];
-  const j_R = ij_R[1];
-  const ij_D: Coord = [D, D];
-  const i_D = ij_D[0];
-  const j_D = ij_D[1];
-
-  /** ([i,j]) => ([u,v]) */
-  function toRel(ij: Coord): Coord {
-    //  u = ((i - i_R) + (j - j_R) * cos(60 deg)) * du
-    //  v = (j - j_R) * dv
-    return [
-      ((ij[0] - i_R) + (ij[1] - j_R) * cos60) * du,
-      (ij[1] - j_R) * dv,
-    ];
-  }
-  /** ([u,v]) => ([i,j]) */
-  function fromRel(uv: Coord): Coord {
-    //  i = u / du - (j - j_R) * cos(60 deg) + i_R
-    //  j = v / dv + j_R
-    const j = uv[1] / dv + j_R;
-    return [
-      uv[0] / du - (j - j_R) * cos60 + i_R,
-      j
-    ];
-  }
-
-  //  constants - rel coordinate basi
-  const uv_0 = toRel(ij_0);
-  const u_0 = uv_0[0];
-  const v_0 = uv_0[1];
-  const uv_R = toRel(ij_R);
-  const u_R = uv_R[0];
-  const v_R = uv_R[1];
-  const uv_D = toRel(ij_D);
-  const u_D = uv_D[0];
-  const v_D = uv_D[1];
-
-  /** ([u,v]) => ([x,y]) */
-  function toScreen(uv: Coord, viewBox: DOMRect): Coord {
-
-  }
-  /** ([x,y]) => ([u,v]) */
-  function fromScreen(xy: Coord): Coord {
-
-  }
-
 
   function coordsOfId(id: number): Coord {
     return [id % W, id / W | 0];

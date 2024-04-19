@@ -6,7 +6,7 @@ import { GameCell, GameLine, GameVert, initBoard, LineState } from 'src/model';
 import { computed, ComputedRef, onMounted, Ref, ref, shallowRef, toRaw } from 'vue';
 
 defineOptions({
-  name: 'SVGGameBoard'
+  name: 'SVGGameBoard',
 });
 
 const props = defineProps<{
@@ -79,6 +79,15 @@ const verts = shallowRef<GameVert[]>([]);
 
 const defCells = computed(() => cells.value.filter(c => c));
 
+function transformForBBs(src: DOMRect, tgt: DOMRect): DOMMatrix {
+  const result = new DOMMatrix()
+    .scaleSelf(tgt.width / src.width, tgt.height / src.height)
+    .translateSelf(tgt.x - src.x, tgt.y - src.y);
+  console.log(result);
+  return result;
+}
+window.transformForBBs = transformForBBs;
+
 //  pan & zoom parameters
 let isPanning = false;
 const panBounds = { xMin: 0, yMin: 0, xMax: 0, yMax: 0 };
@@ -148,6 +157,8 @@ function updateZoom(ev: WheelEvent): void {
   zoomPower.value = newPower;
 }
 
+const svg = ref(null);
+
 onMounted(() => {
 
   const board = initBoard(props.r, cellSpacing);
@@ -167,14 +178,46 @@ onMounted(() => {
   panBounds.yMax = panBounds.xMax * Math.sin(60 * Math.PI / 180);
   panBounds.xMin = -panBounds.xMax;
   panBounds.yMin = -panBounds.yMax;
+
+  const vb = viewBox.value;
+  console.log('demonstrating bbox-derived transformation matrix');
+  const src = DOMRect.fromRect({ x: vb[0], y: vb[1], width: vb[2], height: vb[3] });
+  console.info('source view box: %o', src);
+  const { width, height } = window.getComputedStyle(svg.value);
+  const tgt = DOMRect.fromRect({width: Number(width.replace('px', '')), height: Number(height.replace('px', ''))});
+  console.info('target view box: %o', tgt);
+  const xform = transformForBBs(src, tgt);
+  console.info('derived transformation matrix: %o', xform);
+
+  const p0 = new DOMPoint(0, 0);
+  console.log('convert %o from rel to screen coordinates:', p0);
+  console.log(xform.transformPoint(p0));
+
+  const p1 = new DOMPoint(vb[0] + vb[2], vb[1] + vb[3]);
+  console.log('convert %o from rel to screen coordinates:', p1);
+  console.log(xform.transformPoint(p1));
+
+  const inv = xform.inverse();
+  console.info('inverse transform matrix: %o', inv);
+
+  console.log('convert %0 from screen to rel coordinates:', p0);
+  console.log(inv.transformPoint(p0));
+
+  const p2 = new DOMPoint(tgt.width / 2, tgt.height / 2);
+  console.log('convert %0 from screen to rel coordinates:', p2);
+  console.log(inv.transformPoint(p2));
+
+  const p3 = new DOMPoint(tgt.width, tgt.height);
+  console.log('convert %0 from screen to rel coordinates:', p3);
+  console.log(inv.transformPoint(p3));
 });
 
 </script>
 
 <template>
   <div>
-    <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
-      <g :transform="transformStr">
+    <svg ref="svg" :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
+      <g id="globalTransform" :transform="transformStr">
         <image v-if="backdrop" :href="backdrop.src" :transform="backdropTransformStr" :x="backdropX" :y="backdropY" height="100%" @load="centerImage" />
         <SVGCell v-for="c of defCells" :cell="c" :r="cellRadius" :key="c.id" />
         <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :key="l.id" />
