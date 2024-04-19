@@ -79,6 +79,16 @@ const sin60 = Math.sin(deg60);
 /** cos(60 degrees) = cos(pi/3 radians) = 0.5 */
 const cos60 = Math.cos(deg60);
 
+/** technically du/di, derivative of u with respect to i */
+const du = 1;
+/** technically dv/dj, derivative of v with respect to j
+ * dv is negative because i_hat to j_hat forms a -60 degree angle as measured
+ * in the <u_hat,v_hat> coordinate basis, and:
+ *
+ *    sin(-60) =~ (-0.866)
+ */
+const dv = du * (-sin60);
+
 
 export function getCellCount(r: number): number {
   //  6((1/2)(r^2 - r)) + 1
@@ -93,17 +103,72 @@ export function getVertCount(r: number): number {
   return (6 * r + 12) * r + 6;
 }
 
-/**
- *
- * @param R
- * @param cellSpacing - distance (in rel. coords) between cell centers
- */
+/** initialize board structure */
 export function initBoard(R: number, cellSpacing: number): GameStruct {
 
+  //  constants - grid dimensions
   const D = 2 * R;
   const S = D + 1;
   const W = S + 2;
   const H = S + 1;
+
+  //  constants - element quantities
+  const G = W * H;
+  const C = getCellCount(R);
+  const L = getLineCount(R);
+  const V = getVertCount(R);
+
+  //  constants - grid coordinate basis
+  const ij_0: Coord = [0, 0];
+  const i_0 = ij_0[0];
+  const j_0 = ij_0[1];
+  const ij_R: Coord = [R, R];
+  const i_R = ij_R[0];
+  const j_R = ij_R[1];
+  const ij_D: Coord = [D, D];
+  const i_D = ij_D[0];
+  const j_D = ij_D[1];
+
+  /** ([i,j]) => ([u,v]) */
+  function toRel(ij: Coord): Coord {
+    //  u = ((i - i_R) + (j - j_R) * cos(60 deg)) * du
+    //  v = (j - j_R) * dv
+    return [
+      ((ij[0] - i_R) + (ij[1] - j_R) * cos60) * du,
+      (ij[1] - j_R) * dv,
+    ];
+  }
+  /** ([u,v]) => ([i,j]) */
+  function fromRel(uv: Coord): Coord {
+    //  i = u / du - (j - j_R) * cos(60 deg) + i_R
+    //  j = v / dv + j_R
+    const j = uv[1] / dv + j_R;
+    return [
+      uv[0] / du - (j - j_R) * cos60 + i_R,
+      j
+    ];
+  }
+
+  //  constants - rel coordinate basi
+  const uv_0 = toRel(ij_0);
+  const u_0 = uv_0[0];
+  const v_0 = uv_0[1];
+  const uv_R = toRel(ij_R);
+  const u_R = uv_R[0];
+  const v_R = uv_R[1];
+  const uv_D = toRel(ij_D);
+  const u_D = uv_D[0];
+  const v_D = uv_D[1];
+
+  /** ([u,v]) => ([x,y]) */
+  function toScreen(uv: Coord, viewBox: DOMRect): Coord {
+
+  }
+  /** ([x,y]) => ([u,v]) */
+  function fromScreen(xy: Coord): Coord {
+
+  }
+
 
   function coordsOfId(id: number): Coord {
     return [id % W, id / W | 0];
@@ -143,11 +208,6 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
       offsetRadius * Math.sin(radians),
     ]);
   }
-
-  const G = W * H;
-  const C = getCellCount(R);
-  const L = getLineCount(R);
-  const V = getVertCount(R);
 
   /** flat, dense array of vertex objects, indexed by id */
   const verts: GameVert[] = [];
