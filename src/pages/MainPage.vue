@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DataEntryInterface from 'components/DataEntryInterface.vue';
 import SVGGameBoard from 'components/SVGGameBoard.vue';
+import SVGTransformDemo from 'components/SVGTransformDemo.vue';
 import { ref } from 'vue';
 
 defineOptions({
@@ -16,6 +17,7 @@ const navMenu = ref({
   dataEntry: false,
   solve: false,
   appearance: false,
+  transform: false,
 });
 
 </script>
@@ -26,6 +28,7 @@ const navMenu = ref({
       <div class="col view">
         <SVGGameBoard v-if="navMenu.generate" :r="radius" />
         <DataEntryInterface v-if="navMenu.dataEntry" />
+        <SVGTransformDemo v-if="navMenu.transform" />
       </div>
       <div class="col-auto inputs">
         <q-list bordered>
@@ -55,6 +58,9 @@ const navMenu = ref({
 
           </q-expansion-item>
           <q-expansion-item v-model="navMenu.appearance" group="main_nav" label="Appearance" icon="o_shape_line" expand-separator >
+
+          </q-expansion-item>
+          <q-expansion-item v-model="navMenu.transform" group="main_nav" label="Transform test" icon="zoom_in" expand-separator >
 
           </q-expansion-item>
         </q-list>
