@@ -1,17 +1,9 @@
 <script setup lang="ts">
+import { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
-import {
-  GameCell,
-  GameLine,
-  GameVert,
-  generateRandomSolution,
-  initBoard,
-  initState,
-  randomIterator,
-  LineState, UpdateIterator
-} from 'src/model';
-import { computed, onMounted, Ref, ref, shallowRef } from 'vue';
+import { GameCell, GameLine, GameVert, initBoard, LineState } from 'src/model';
+import { computed, ComputedRef, onMounted, Ref, ref, shallowRef, toRaw } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
@@ -19,10 +11,67 @@ defineOptions({
 
 const props = defineProps<{
   r: number;
+  backdrop?: BackdropImageData;
 }>();
+
+const deg60 = Math.PI / 3;
+const sin60 = Math.sin(deg60);
+const cos60 = Math.cos(deg60);
+
+const cellSpacing = 2;
+const cellRadius = 0.98;
+
+const dx = cellSpacing;
+const dy = dx * sin60;
 
 const viewBox = shallowRef<[number, number, number, number]>([-5, -5, 20, 20]);
 const viewBoxStr = computed(() => viewBox.value.join(' '));
+
+const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
+const backdropX = ref(0);
+const backdropY = ref(0);
+const backdropTransformStr: ComputedRef<string> = computed(() => {
+  const bd = props.backdrop;
+  if(!bd) {
+    return '';
+  }
+
+  const bb = backdropBB.value;
+  window.vb = toRaw(viewBox.value);
+  window.bb = toRaw(bb);
+  window.bd = toRaw(bd.datums);
+  console.log(window.vb);
+  console.log(window.bb);
+  console.log(window.bd);
+
+  const gridDV = 2 * props.r * cellSpacing * sin60;
+  const imgDY = bb.height * (bd.datums.ys - bd.datums.y0);
+  const imgYR = -bb.height * (bd.datums.ys + bd.datums.y0 - 1) / 2;
+  // const imgXR = -bb.width * (bd.datums.xr)
+  return `scale(${ gridDV / imgDY }) translate(${ 0 } ${ imgYR })`;
+});
+
+type SVGImageLoadEvent = Event & {
+  type: 'load';
+  target: SVGImageElement;
+}
+
+function assertIsSVGImageLoadEvent(ev: Event): asserts ev is SVGImageLoadEvent {
+  if(!(ev.type === 'load' && ev.target instanceof SVGImageElement)) {
+    console.warn('expected %o to be a \'load\' event on the SVG <image> element', ev);
+    throw new TypeError(`incompatible event type '${ev.type}' with target ${ev.target}`);
+  }
+}
+
+function centerImage(ev: Event): void {
+  assertIsSVGImageLoadEvent(ev);
+
+  backdropBB.value = ev.target.getBBox();
+  backdropX.value = -backdropBB.value.width / 2;
+  backdropY.value = -backdropBB.value.height / 2;
+  // console.log(backdropBB.value);
+  // console.log(backdropX.value, backdropY.value);
+}
 
 const cells = shallowRef<GameCell[]>([]);
 const lines = shallowRef<GameLine[]>([]);
@@ -30,27 +79,73 @@ const verts = shallowRef<GameVert[]>([]);
 
 const defCells = computed(() => cells.value.filter(c => c));
 
-const pool: Ref<number[]> = ref([]);
-const path: Ref<number[]> = ref([]);
-const bank: Ref<number[]> = ref([]);
-const excl: Ref<number[]> = ref([]);
+//  pan & zoom parameters
+let isPanning = false;
+const panBounds = { xMin: 0, yMin: 0, xMax: 0, yMax: 0 };
+const panOffset: Ref<[number, number]> = ref([0, 0]);
 
-const cellSpacing = 2;
-const cellRadius = 0.98;
+const zoomBounds = [0, 10];
+const zoomBase: number = 1.25;
+const zoomPower: Ref<number> = ref(0);
+const viewScale: ComputedRef<number> = computed(() => Math.pow(zoomBase, zoomPower.value));
+const screenScale: ComputedRef<number> = computed(() => viewScale.value * viewBox.value[3]);
 
-let step: (() => void) | null = null;
+const transformStr: ComputedRef<string> = computed(() => {
+  return `scale(${viewScale.value}) translate(${panOffset.value[0]} ${panOffset.value[1]})`;
+});
 
-function getCellState(cid: number): number {
-  if(pool.value[cid]) {
-    return 3;
+function startPanning(): void {
+  isPanning = true;
+}
+function stopPanning(): void {
+  isPanning = false;
+}
+function updateOffset(ev: MouseEvent): void {
+  //  stop panning if left mouse button not pressed (i.e. if the 'mouseup'
+  //  event happens off of the <svg> element where the listener is defined)
+  if(!(ev.buttons & 0x01)) {
+    stopPanning();
   }
-  if(excl.value[cid]) {
-    return 2;
+
+  //  use `panAnchor` as the flag to activate panning
+  if(!isPanning) {
+    return;
   }
-  if(bank.value[cid]) {
-    return 1;
+
+  let newX = panOffset.value[0] + ev.movementX / screenScale.value;
+  if(newX > panBounds.xMax) {
+    newX = panBounds.xMax;
   }
-  return 0;
+  else if(newX < panBounds.xMin) {
+    newX = panBounds.xMin;
+  }
+
+  let newY = panOffset.value[1] + ev.movementY / screenScale.value;
+  if(newY > panBounds.yMax) {
+    newY = panBounds.yMax;
+  }
+  else if(newY < panBounds.yMin) {
+    newY = panBounds.yMin;
+  }
+
+  panOffset.value = [newX, newY];
+}
+
+function updateZoom(ev: WheelEvent): void {
+  //  disable zooming in/out while panning
+  if(isPanning) {
+    return;
+  }
+
+  let newPower = zoomPower.value - Math.sign(ev.deltaY);
+  if(newPower < zoomBounds[0]) {
+    newPower = zoomBounds[0];
+  }
+  else if(newPower > zoomBounds[1]) {
+    newPower = zoomBounds[1];
+  }
+
+  zoomPower.value = newPower;
 }
 
 onMounted(() => {
@@ -60,11 +155,6 @@ onMounted(() => {
   lines.value = board.lines;
   verts.value = board.verts;
 
-  pool.value = new Array(board.cells.length).fill(0);
-  path.value = new Array(board.lines.length).fill(0);
-  bank.value = new Array(board.cells.length).fill(0);
-  excl.value = new Array(board.cells.length).fill(0);
-
   const aspectRatio = 1.6;
   const viewH = (board.const.H + 2) * cellSpacing;
   const viewW = viewH * aspectRatio;
@@ -73,95 +163,22 @@ onMounted(() => {
 
   viewBox.value = [uMin, vMin, viewW, viewH];
 
-  const state = initState(board);
-  // step = generateRandomSolution(board, state, 'seed');
-
-  // const nums = iterateRand<number>([0, 1, 2, 3, 4, 5, 6, 7]);
-  // let result = nums.next();
-  // while(!result.done) {
-  //   console.log(result.value);
-  //   if(result.value === 2) {
-  //     result = nums.next([8, 9, 10, 11])
-  //   }
-  //   else {
-  //     result = nums.next();
-  //   }
-  // }
-
-  const cellIds = board.cells.filter(c => c).map(c => c.id);
-  // const centerId = cellIds[cellIds.length / 2 | 0];
-  const startId = cellIds[Math.random() * cellIds.length | 0];
-  const startBank: number[] = [];
-  for(let i = 0; i < 6; i++) {
-    const n = board.cells[startId].n[i];
-    if(n) {
-      bank.value[n.id]++;
-      startBank.push(n.id);
-    }
-  }
-  pool.value[startId] = 1;
-
-  const randomCells = randomIterator(startBank);
-  let update: UpdateIterator<number> = {add: [], rem: []};
-  step = function() {
-    const result = randomCells.next(update);
-    if(result.done) {
-      console.log(`added cells: [${result.value.join(', ')}]`);
-      step = null;
-      return;
-    }
-    update = addToPool(result.value);
-  }
-  // while(step) {
-  //   step();
-  // }
+  panBounds.xMax = board.R * cellSpacing;
+  panBounds.yMax = panBounds.xMax * Math.sin(60 * Math.PI / 180);
+  panBounds.xMin = -panBounds.xMax;
+  panBounds.yMin = -panBounds.yMax;
 });
-
-function stepSolution() {
-  if(!step) {
-    return;
-  }
-  step();
-}
-
-function addToPool(cid: number): UpdateIterator<number> {
-  //  ignore:
-  //  - cells already in the pool
-  //  - cells not in the bank
-  //  - excluded cells
-  if(pool.value[cid] || excl.value[cid] || !bank.value[cid]) {
-    return {add: [], rem: []};
-  }
-
-  const c = cells.value[cid];
-
-  const iterUpdate: UpdateIterator<number> = {add: [], rem: []};
-  for(let i = 0; i < 6; i++) {
-    if(c.n[i] === undefined) {
-      continue;
-    }
-
-    const nid = c.n[i].id;
-    bank.value[nid]++;
-    if(bank.value[nid] === 1) {
-      iterUpdate.add.push(nid);
-    }
-    else if(bank.value[nid] > 2) {
-      excl.value[nid] = 1;
-      iterUpdate.rem.push(nid);
-    }
-  }
-  pool.value[cid] = 1;
-  return iterUpdate;
-}
 
 </script>
 
 <template>
   <div>
-    <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @click="stepSolution">
-      <SVGCell v-for="c of defCells" :cell="c" :r="cellRadius" :state="getCellState(c.id)" :key="c.id" @click.stop="() => addToPool(c.id)" />
-      <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :onPath="l.c.filter(c => c && pool[c.id]).length === 1" :key="l.id" />
+    <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
+      <g :transform="transformStr">
+        <image v-if="backdrop" :href="backdrop.src" :transform="backdropTransformStr" :x="backdropX" :y="backdropY" height="100%" @load="centerImage" />
+        <SVGCell v-for="c of defCells" :cell="c" :r="cellRadius" :key="c.id" />
+        <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :key="l.id" />
+      </g>
     </svg>
   </div>
 </template>

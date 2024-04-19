@@ -10,7 +10,6 @@ defineOptions({
 const props = defineProps<{
   line: GameLine,
   state: LineState,
-  onPath: boolean,
 }>();
 
 const coords = computed(() => {
@@ -22,7 +21,7 @@ const coords = computed(() => {
 </script>
 
 <template>
-  <line :x1="coords[0][0]" :y1="coords[0][1]" :x2="coords[1][0]" :y2="coords[1][1]" :stroke="onPath ? '#222222b0' : '#666666b0'" stroke-width="0.1" :data-id="line.id"></line>
+  <line :x1="coords[0][0]" :y1="coords[0][1]" :x2="coords[1][0]" :y2="coords[1][1]" stroke="#666666b0" stroke-width="0.1" :data-id="line.id"></line>
 </template>
 
 <style scoped lang="sass">

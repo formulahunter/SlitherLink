@@ -72,6 +72,14 @@ export interface GameVert {
 }
 
 
+/** 60 degrees = pi/3 radians */
+const deg60 = Math.PI / 3;
+/** sin(60 degrees) = sin(pi/3 radians) =~ 0.866 */
+const sin60 = Math.sin(deg60);
+/** cos(60 degrees) = cos(pi/3 radians) = 0.5 */
+const cos60 = Math.cos(deg60);
+
+
 export function getCellCount(r: number): number {
   //  6((1/2)(r^2 - r)) + 1
   return (3 * r + 3) * r + 1;
@@ -116,10 +124,6 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
   function idIsOnBoard(id: number): boolean {
     return coordsAreOnBoard(coordsOfId(id));
   }
-
-  const deg60 = Math.PI / 3;
-  const cos60 = Math.cos(deg60);
-  const sin60 = Math.sin(deg60);
 
   const i0 = R + 1;
   const j0 = R;

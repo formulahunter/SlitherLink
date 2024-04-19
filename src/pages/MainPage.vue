@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import DataEntryInterface from 'components/DataEntryInterface.vue';
+import BackdropImgConfig, { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGGameBoard from 'components/SVGGameBoard.vue';
-import { ref } from 'vue';
+import { Ref, ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
@@ -9,7 +9,7 @@ defineOptions({
 
 const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 
-const radius = ref(3);
+const radius = ref(4);
 
 const navMenu = ref({
   generate: false,
@@ -18,14 +18,21 @@ const navMenu = ref({
   appearance: false,
 });
 
+const backdrop: Ref<BackdropImageData | undefined> = ref();
+
+function setBackdropImg(data: BackdropImageData) {
+  backdrop.value = data;
+  navMenu.value.generate = true;
+}
+
 </script>
 
 <template>
   <q-page class="q-pa-md">
     <div class="row page-row items-stretch justify-between">
       <div class="col view">
-        <SVGGameBoard v-if="navMenu.generate" :r="radius" />
-        <DataEntryInterface v-if="navMenu.dataEntry" />
+        <BackdropImgConfig v-if="navMenu.dataEntry" :r="radius" @setBackdrop="setBackdropImg" />
+        <SVGGameBoard v-if="navMenu.generate" :r="radius" :backdrop="backdrop" />
       </div>
       <div class="col-auto inputs">
         <q-list bordered>
