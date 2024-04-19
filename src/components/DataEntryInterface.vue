@@ -13,16 +13,18 @@ const imgSrc: ComputedRef<string> = computed(() => {
   return URL.createObjectURL(imgFile.value);
 });
 
+const imgX: Ref<number> = ref(0);
+
 /** [y0, y1, ys, xr] */
-const datum: Ref<{[k: string]: number}> = ref({});
+const datumVals: Ref<number[]> = ref([]);
+const datumLines: Ref<number[][]> = ref([]);
 
 /** [h, s, r, dy, dx] */
 const params: Ref<{[k: string]: number}> = ref({});
 
-const line0 = ref([[0, 0], [0, 0]]);
-const line1 = ref([[0, 0], [0, 0]]);
-const line2 = ref([[0, 0], [0, 0]]);
-const line3 = ref([[0, 0], [0, 0]]);
+function centerImage(ev: Event): void {
+  imgX.value = (Number(window.getComputedStyle(ev.target.parentElement).width.replace('px', '')) - ev.target.getBBox().width) / 2;
+}
 
 type MouseEventOnSVGWithLayerXY = MouseEvent & {
   layerX: number;
@@ -31,44 +33,52 @@ type MouseEventOnSVGWithLayerXY = MouseEvent & {
 }
 
 function setAlignParams(ev: MouseEventOnSVGWithLayerXY): void {
-  const my: number = ev.layerY;
-  if(datum.value.y0 === undefined) {
-    datum.value.y0 = my;
+  //  abort if all 4 values already defined
+  const i = datumVals.value.length;
+  if(i > 3) {
+    return;
   }
-  else if(datum.value.y1 === undefined) {
-    datum.value.y1 = my;
-  }
-  else if(datum.value.ys === undefined) {
-    datum.value.ys = my;
 
-    params.value.h = datum.value.ys - datum.value.y0;
-    params.value.s = Math.round(params.value.h / (datum.value.y1 - datum.value.y0)) + 1;  //  s = round(h / (y1 - y0)) + 1
-    params.value.r = (params.value.s - 1) / 2;  //  r = (s - 1) / 2
-    params.value.dy = params.value.h / (params.value.s - 1); //  dy = h / (s - 1)
-    params.value.dx = params.value.dy / (2 * Math.sin(60 * Math.PI / 180)); //  dx = dy / sin(60deg)
+  const my: number = ev.layerY;
+  if(i < 3) {
+    datumVals.value[i] = my;
+    if(i === 2) {
+      params.value.h = datumVals.value[2] - datumVals.value[0];
+      params.value.s = Math.round(params.value.h / (datumVals.value[1] - datumVals.value[0])) + 1;  //  s = round(h / (y1 - y0)) + 1
+      params.value.r = (params.value.s - 1) / 2;  //  r = (s - 1) / 2
+      params.value.dy = params.value.h / (params.value.s - 1); //  dy = h / (s - 1)
+      params.value.dx = params.value.dy / (2 * Math.sin(60 * Math.PI / 180)); //  dx = dy / sin(60deg)
+    }
   }
-  else if(datum.value.xr === undefined) {
+  else if(i === 3) {
     const mx: number = ev.layerX;
-    datum.value.xr = mx - (my - datum.value.y0) * params.value.dx / params.value.dy;
+    datumVals.value[i] = mx - (my - datumVals.value[0]) * params.value.dx / params.value.dy;
   }
 }
 
 function updateLine(ev: MouseEventOnSVGWithLayerXY): void {
+  //  abort if all 4 values already defined
+  if(datumVals.value.length > 3) {
+    return;
+  }
+
+  //  if values defined for all existing lines, create a new line
+  if(datumVals.value.length === datumLines.value.length) {
+    datumLines.value[datumLines.value.length] = [0, 0, 0, 0];
+  }
+
+  const i = datumLines.value.length - 1;
   const my: number = ev.layerY;
-  if(datum.value.y0 === undefined) {
-    line0.value = [[0, my], [ev.currentTarget.width.baseVal.value, my]];
+  if(i < 3) {
+    datumLines.value[i] = [0, my, ev.currentTarget.width.baseVal.value, my];
   }
-  else if(datum.value.y1 === undefined) {
-    line1.value = [[0, my], [ev.currentTarget.width.baseVal.value, my]];
-  }
-  else if(datum.value.ys === undefined) {
-    line2.value = [[0, my], [ev.currentTarget.width.baseVal.value, my]];
-  }
-  else if(datum.value.xr === undefined) {
+  else if(i === 3) {
     const mx: number = ev.layerX;
-    line3.value = [
-      [mx - my * params.value.dx / params.value.dy, 0],
-      [mx + (ev.currentTarget.height.baseVal.value - my) * params.value.dx / params.value.dy, ev.currentTarget.height.baseVal.value],
+    datumLines.value[i] = [
+      mx - my * params.value.dx / params.value.dy,
+      0,
+      mx + (ev.currentTarget.height.baseVal.value - my) * params.value.dx / params.value.dy,
+      ev.currentTarget.height.baseVal.value,
     ];
   }
 }
@@ -77,17 +87,15 @@ function updateLine(ev: MouseEventOnSVGWithLayerXY): void {
 
 <template>
   <div style="position: relative">
-    <q-img v-if="imgFile !== null" :src="imgSrc" class="backdrop" fit="scale-down" />
-    <q-file v-if="imgFile === null" v-model="imgFile" filled name="backdrop" accept="image/*" label="Choose photo" />
-    <div v-if="imgFile !== null" class="align">
+    <div class="align">
       <svg @mousemove="updateLine" @click="setAlignParams">
-<!--        <image v-if="imgSrc !== ''" :href="imgSrc" height="100%"/>-->
-        <line :x1="line0[0][0]" :y1="line0[0][1]" :x2="line0[1][0]" :y2="line0[1][1]" />
-        <line v-if="datum.y0 !== undefined" :x1="line1[0][0]" :y1="line1[0][1]" :x2="line1[1][0]" :y2="line1[1][1]" />
-        <line v-if="datum.y1 !== undefined" :x1="line2[0][0]" :y1="line2[0][1]" :x2="line2[1][0]" :y2="line2[1][1]" />
-        <line v-if="datum.ys !== undefined" :x1="line3[0][0]" :y1="line3[0][1]" :x2="line3[1][0]" :y2="line3[1][1]" />
+        <image ref="backdrop" v-if="imgSrc !== ''" :href="imgSrc" height="100%" :x="imgX" @load="centerImage" />
+        <g v-if="imgFile !== null">
+          <line v-for="l of datumLines" :x1="l[0]" :y1="l[1]" :x2="l[2]" :y2="l[3]" />
+        </g>
       </svg>
     </div>
+    <q-file v-if="imgFile === null" v-model="imgFile" filled name="backdrop" accept="image/*" label="Choose photo" />
   </div>
 </template>
 
