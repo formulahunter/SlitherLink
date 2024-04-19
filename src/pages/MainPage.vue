@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import DataEntryInterface from 'components/DataEntryInterface.vue';
 import SVGGameBoard from 'components/SVGGameBoard.vue';
+import { ref } from 'vue';
 
 defineOptions({
-  name: 'MainPage'
+  name: 'MainPage',
 });
 
 const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
@@ -23,7 +24,8 @@ const navMenu = ref({
   <q-page class="q-pa-md">
     <div class="row page-row items-stretch justify-between">
       <div class="col view">
-        <SVGGameBoard :r="radius" />
+        <SVGGameBoard v-if="navMenu.generate" :r="radius" />
+        <DataEntryInterface v-if="navMenu.dataEntry" />
       </div>
       <div class="col-auto inputs">
         <q-list bordered>
@@ -63,8 +65,10 @@ const navMenu = ref({
 
 <style lang="sass">
 .q-page
+  max-height: 80vh
   margin: 0
   //background: rgba(#000, 0.25)
+  //overflow
 .page-row
   //background: rgba(#000, 0.25)
 
