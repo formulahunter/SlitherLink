@@ -3,7 +3,7 @@ import { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
 import { GameStruct } from 'src/model';
-import { computed, ComputedRef, Ref, ref, toRaw } from 'vue';
+import { computed, ComputedRef, Ref, ref, watchEffect } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
@@ -23,18 +23,6 @@ const aspectRatio = 1.6;
 const cellSpacing = 1;
 const cellRadius = 0.98;
 
-const viewBox = computed(() => {
-  const dV = (props.structure.const.H + 2) * cellSpacing
-  const vMin = -dV / 2;
-  return [
-    vMin * aspectRatio,
-    vMin,
-    dV * aspectRatio,
-    dV,
-  ];
-});
-const viewBoxStr = computed(() => viewBox.value.join(' '));
-
 const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
 const backdropX = ref(0);
 const backdropY = ref(0);
@@ -45,12 +33,6 @@ const backdropTransformStr: ComputedRef<string> = computed(() => {
   }
 
   const bb = backdropBB.value;
-  window.vb = toRaw(viewBox.value);
-  window.bb = toRaw(bb);
-  window.bd = toRaw(bd.datums);
-  console.log(window.vb);
-  console.log(window.bb);
-  console.log(window.bd);
 
   const gridDV = 2 * props.r * cellSpacing * sin60;
   const imgDY = bb.height * (bd.datums.ys - bd.datums.y0);
@@ -93,12 +75,39 @@ const panOffset: Ref<[number, number]> = ref([0, 0]);
 const zoomBounds = [0, 10];
 const zoomBase: number = 1.25;
 const zoomPower: Ref<number> = ref(0);
-const viewScale: ComputedRef<number> = computed(() => Math.pow(zoomBase, zoomPower.value));
-const screenScale: ComputedRef<number> = computed(() => viewScale.value * viewBox.value[3]);
+const zoomScale: ComputedRef<number> = computed(() => Math.pow(zoomBase, zoomPower.value));
 
 const transformStr: ComputedRef<string> = computed(() => {
-  return `scale(${viewScale.value}) translate(${panOffset.value[0]} ${panOffset.value[1]})`;
+  return `scale(${zoomScale.value}) translate(${panOffset.value[0]} ${panOffset.value[1]})`;
 });
+
+const viewBox = computed(() => {
+  const dV = (props.structure.const.H + 2) * cellSpacing
+  const vMin = -dV / 2;
+  return [
+    vMin * aspectRatio,
+    vMin,
+    dV * aspectRatio,
+    dV,
+  ];
+});
+const viewBoxStr = computed(() => viewBox.value.join(' '));
+
+const svgRoot: Ref<SVGSVGElement | null> = ref(null);
+const svgContentBox = ref({ blockSize: 0, inlineSize: 0 });
+function updateViewBB(entries: ResizeObserverEntry[]) {
+  svgContentBox.value = entries[0].contentBoxSize[0];
+}
+const resizeObserver = new ResizeObserver(updateViewBB);
+watchEffect((onCleanup) => {
+  const svg = svgRoot.value;
+  if(svg === null) {
+    return;
+  }
+  resizeObserver.observe(svg);
+  onCleanup(() => resizeObserver.unobserve(svg));
+});
+const viewScale: ComputedRef<number> = computed(() => zoomScale.value * svgContentBox.value.blockSize / viewBox.value[3]);
 
 function startPanning(): void {
   isPanning = true;
@@ -112,13 +121,11 @@ function updateOffset(ev: MouseEvent): void {
   if(!(ev.buttons & 0x01)) {
     stopPanning();
   }
-
-  //  use `panAnchor` as the flag to activate panning
   if(!isPanning) {
     return;
   }
 
-  let newX = panOffset.value[0] + ev.movementX / screenScale.value;
+  let newX = panOffset.value[0] + ev.movementX / viewScale.value;
   if(newX > panBounds.value.xMax) {
     newX = panBounds.value.xMax;
   }
@@ -126,7 +133,7 @@ function updateOffset(ev: MouseEvent): void {
     newX = panBounds.value.xMin;
   }
 
-  let newY = panOffset.value[1] + ev.movementY / screenScale.value;
+  let newY = panOffset.value[1] + ev.movementY / viewScale.value;
   if(newY > panBounds.value.yMax) {
     newY = panBounds.value.yMax;
   }
@@ -158,7 +165,7 @@ function updateZoom(ev: WheelEvent): void {
 
 <template>
   <div>
-    <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
+    <svg ref="svgRoot" :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
       <g :transform="transformStr">
         <image v-if="backdrop" :href="backdrop.src" :transform="backdropTransformStr" :x="backdropX" :y="backdropY" height="100%" @load="centerImage" />
         <SVGCell v-for="c of structure.cells" :cell="c" :r="cellRadius" :key="c.id" />
