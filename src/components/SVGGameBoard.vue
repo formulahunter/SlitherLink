@@ -23,64 +23,6 @@ const aspectRatio = 1.6;
 const cellSpacing = 1;
 const cellRadius = 0.98;
 
-const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
-const backdropX = ref(0);
-const backdropY = ref(0);
-const backdropTransformStr: ComputedRef<string> = computed(() => {
-  const bd = props.backdrop;
-  if(!bd) {
-    return '';
-  }
-
-  const bb = backdropBB.value;
-
-  const gridDV = 2 * props.r * cellSpacing * sin60;
-  const imgDY = bb.height * (bd.datums.ys - bd.datums.y0);
-  const imgYR = -bb.height * (bd.datums.ys + bd.datums.y0 - 1) / 2;
-  // const imgXR = -bb.width * (bd.datums.xr)
-  return `scale(${ gridDV / imgDY }) translate(${ 0 } ${ imgYR })`;
-});
-
-type SVGImageLoadEvent = Event & {
-  type: 'load';
-  target: SVGImageElement;
-}
-
-function assertIsSVGImageLoadEvent(ev: Event): asserts ev is SVGImageLoadEvent {
-  if(!(ev.type === 'load' && ev.target instanceof SVGImageElement)) {
-    console.warn('expected %o to be a \'load\' event on the SVG <image> element', ev);
-    throw new TypeError(`incompatible event type '${ev.type}' with target ${ev.target}`);
-  }
-}
-
-function centerImage(ev: Event): void {
-  assertIsSVGImageLoadEvent(ev);
-
-  backdropBB.value = ev.target.getBBox();
-  backdropX.value = -backdropBB.value.width / 2;
-  backdropY.value = -backdropBB.value.height / 2;
-  // console.log(backdropBB.value);
-  // console.log(backdropX.value, backdropY.value);
-}
-
-//  pan & zoom parameters
-let isPanning = false;
-const panBounds = computed(() => {
-  const xMax = props.structure.R * cellSpacing;
-  const yMax = xMax * sin60;
-  return { xMax, yMax, xMin: -xMax, yMin: -yMax };
-});
-const panOffset: Ref<[number, number]> = ref([0, 0]);
-
-const zoomBounds = [0, 10];
-const zoomBase: number = 1.25;
-const zoomPower: Ref<number> = ref(0);
-const zoomScale: ComputedRef<number> = computed(() => Math.pow(zoomBase, zoomPower.value));
-
-const transformStr: ComputedRef<string> = computed(() => {
-  return `scale(${zoomScale.value}) translate(${panOffset.value[0]} ${panOffset.value[1]})`;
-});
-
 const viewBox = computed(() => {
   const dV = (props.structure.const.H + 2) * cellSpacing
   const vMin = -dV / 2;
@@ -93,12 +35,30 @@ const viewBox = computed(() => {
 });
 const viewBoxStr = computed(() => viewBox.value.join(' '));
 
+//  pan & zoom parameters
+const panOffset: Ref<[number, number]> = ref([0, 0]);
+let isPanning = false;
+const panBounds = computed(() => {
+  const xMax = props.structure.R * cellSpacing;
+  const yMax = xMax * sin60;
+  return { xMax, yMax, xMin: -xMax, yMin: -yMax };
+});
+
+const zoomPower: Ref<number> = ref(0);
+const zoomBounds = [0, 10];
+const zoomBase: number = 1.25;
+const zoomScale: ComputedRef<number> = computed(() => Math.pow(zoomBase, zoomPower.value));
+
+const transformStr: ComputedRef<string> = computed(() => {
+  return `scale(${zoomScale.value}) translate(${panOffset.value[0]} ${panOffset.value[1]})`;
+});
+
 const svgRoot: Ref<SVGSVGElement | null> = ref(null);
 const svgContentBox = ref({ blockSize: 0, inlineSize: 0 });
-function updateViewBB(entries: ResizeObserverEntry[]) {
+function updateSVGContentBox(entries: ResizeObserverEntry[]) {
   svgContentBox.value = entries[0].contentBoxSize[0];
 }
-const resizeObserver = new ResizeObserver(updateViewBB);
+const resizeObserver = new ResizeObserver(updateSVGContentBox);
 watchEffect((onCleanup) => {
   const svg = svgRoot.value;
   if(svg === null) {
@@ -107,6 +67,7 @@ watchEffect((onCleanup) => {
   resizeObserver.observe(svg);
   onCleanup(() => resizeObserver.unobserve(svg));
 });
+
 const viewScale: ComputedRef<number> = computed(() => zoomScale.value * svgContentBox.value.blockSize / viewBox.value[3]);
 
 function startPanning(): void {
@@ -159,6 +120,47 @@ function updateZoom(ev: WheelEvent): void {
   }
 
   zoomPower.value = newPower;
+}
+
+
+const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
+const backdropX = ref(0);
+const backdropY = ref(0);
+const backdropTransformStr: ComputedRef<string> = computed(() => {
+  const bd = props.backdrop;
+  if(!bd) {
+    return '';
+  }
+
+  const bb = backdropBB.value;
+
+  const gridDV = 2 * props.r * cellSpacing * sin60;
+  const imgDY = bb.height * (bd.datums.ys - bd.datums.y0);
+  const imgYR = -bb.height * (bd.datums.ys + bd.datums.y0 - 1) / 2;
+  // const imgXR = -bb.width * (bd.datums.xr)
+  return `scale(${ gridDV / imgDY }) translate(${ 0 } ${ imgYR })`;
+});
+
+type SVGImageLoadEvent = Event & {
+  type: 'load';
+  target: SVGImageElement;
+}
+
+function assertIsSVGImageLoadEvent(ev: Event): asserts ev is SVGImageLoadEvent {
+  if(!(ev.type === 'load' && ev.target instanceof SVGImageElement)) {
+    console.warn('expected %o to be a \'load\' event on the SVG <image> element', ev);
+    throw new TypeError(`incompatible event type '${ev.type}' with target ${ev.target}`);
+  }
+}
+
+function centerImage(ev: Event): void {
+  assertIsSVGImageLoadEvent(ev);
+
+  backdropBB.value = ev.target.getBBox();
+  backdropX.value = -backdropBB.value.width / 2;
+  backdropY.value = -backdropBB.value.height / 2;
+  // console.log(backdropBB.value);
+  // console.log(backdropX.value, backdropY.value);
 }
 
 </script>
