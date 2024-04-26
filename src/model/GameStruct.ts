@@ -24,14 +24,8 @@ export interface GameStruct {
 export interface GameCell {
   id: number;
 
-  /** position of cell's geometric center */
-  pos: {
-    /** grid coordinates (i, j) */
-    grid: Coord;
-
-    /** relative coordinates (u, v) */
-    rel: Coord;
-  };
+  /** grid coordinates (i, j) */
+  coord: Coord;
 
   /** cell lines, indexed clockwise from left */
   l: GameLine[];
@@ -61,23 +55,31 @@ export interface GameLine {
 export interface GameVert {
   id: number;
 
-  /** vertex position */
-  pos: {
-    /** relative coordinates (u, v) */
-    rel: [number, number];
-  };
+  /** nominal coordinates (u, v) */
+  nom: [number, number];
 
   /** vertex lines, where defined */
   l: [GameLine?, GameLine?, GameLine?];
 }
 
 
+/** 30 degrees = pi/6 radians */
+const deg30 = Math.PI / 6;
 /** 60 degrees = pi/3 radians */
 const deg60 = Math.PI / 3;
 /** sin(60 degrees) = sin(pi/3 radians) =~ 0.866 */
 const sin60 = Math.sin(deg60);
 /** cos(60 degrees) = cos(pi/3 radians) = 0.5 */
 const cos60 = Math.cos(deg60);
+
+/** du/di, derivative of u with respect to i */
+const du_di = 1;
+/** dv/di, derivative of v with respect to i */
+const dv_di = 0;
+/** du/dj, derivative of u with respect to j */
+const du_dj = du_di * cos60;
+/** dv/dj, derivative of v with respect to j */
+const dv_dj = du_di * sin60;
 
 
 export function getCellCount(r: number): number {
@@ -93,48 +95,84 @@ export function getVertCount(r: number): number {
   return (6 * r + 12) * r + 6;
 }
 
-/**
- *
- * @param R
- * @param cellSpacing - distance (in rel. coords) between cell centers
- */
-export function initBoard(R: number, cellSpacing: number): GameStruct {
+function initCell(id: number, ij: Coord): GameCell {
+  return {
+    id,
+    coord: ij,
+    l: [],
+    v: [],
+    n: [],
+  };
+}
+function initLine(id: number, verts: [GameVert, GameVert]): GameLine {
+  return {
+    id,
+    v: verts,
+    c: [],
+  };
+}
+function initVert(id: number, uv: Coord): GameVert {
+  return {
+    id,
+    nom: uv,
+    l: [],
+  };
+}
 
+/** initialize minimal structure for given board radius */
+export function initBoard(R: number): GameStruct {
+
+  /** board diameter, corner-to-corner distance in units of cells */
   const D = 2 * R;
+  /** board "span", number of cells across any board diagonal */
   const S = D + 1;
-  const W = S + 2;
-  const H = S + 1;
+  /** grid width */
+  const W = S;
+  /** grid height */
+  const H = S;
 
-  function coordsOfId(id: number): Coord {
-    return [id % W, id / W | 0];
-  }
-  function idAtCoords(coords: Coord): number {
-    return coords[1] * W + coords[0];
-  }
+  /** horizontal position of board center, in units of cells */
+  const i_R = R;
+  /** vertical position of board center, in units of cells */
+  const j_R = R;
 
-  function coordsAreOnBoard(coords: Coord): boolean {
-    if(coords[0] < 1 || coords[1] < 0 || coords[0] > S || coords[1] >= S) {
+  /** check whether a cell exists at the given coordinates */
+  function isOnBoard(ij: Coord): boolean {
+    //  (0 <= i < W) && (0 <= j < H)
+    if(ij[0] < 0 || ij[1] < 0 || ij[0] >= W || ij[1] >= H) {
       return false;
     }
-    if(coords[1] < R - coords[0] + 1 || coords[1] > 3 * R - coords[0] + 1) {
+
+    //  (j >= R - i) && (j <= 3*R - i)
+    if(ij[1] < R - ij[0] || ij[1] > 3 * R - ij[0]) {
       return false;
     }
+
     return true;
   }
-  function idIsOnBoard(id: number): boolean {
-    return coordsAreOnBoard(coordsOfId(id));
-  }
 
-  const i0 = R + 1;
-  const j0 = R;
-  function gridToRel(gridCoord: Coord): Coord {
+  /** ([i,j]) => ([u,v]) */
+  function toNom(ij: Coord): Coord {
+    //  u = ((i - i_R) + (j - j_R) * cos(60 deg)) * du
+    //  v = (j - j_R) * dv
     return [
-      cellSpacing * ((gridCoord[0] - i0) + (gridCoord[1] - j0) * cos60),
-      cellSpacing * (gridCoord[1] - j0) * sin60,
+      (ij[0] - i_R) * du_di + (ij[1] - j_R) * du_dj,
+      (ij[1] - j_R) * dv_dj,
+    ];
+  }
+  /** ([u,v]) => ([i,j]) */
+  function fromNom(uv: Coord): Coord {
+    //  i = u / du - (j - j_R) * cos(60 deg) + i_R
+    //  j = v / dv + j_R
+    const j = uv[1] / dv_dj + j_R;
+    return [
+      uv[0] / du_di - (j - j_R) * cos60 + i_R,
+      j
     ];
   }
 
-  const offsetRadius = cellSpacing / (2 * Math.cos(deg60 / 2));
+  /** hypotenuse of a triangle whose 'adjacent' side is (du_di/2) */
+  const offsetRadius = du_di / (2 * Math.cos(deg30));
   const vertOffsets: Coord[] = [];
   for(let i = -2.5; i < 3; i++) {
     const radians = i * deg60;
@@ -155,11 +193,8 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
   /** flat, dense array of line objects, indexed by id */
   const lines: GameLine[] = [];
 
-  /** flat, sparse array of cell objects; indexed by id */
+  /** flat, dense array of cell objects; indexed by id */
   const cells: GameCell[] = [];
-
-  /** flat, dense array of cell id's; indexed sequentially */
-  const cellIds: number[] = [];
 
   /** cell ids by grid position (i, j); indexed as grid[j][i] */
   const grid: number[][] = new Array(H);
@@ -168,34 +203,23 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
     grid[j] = new Array(W);
     for(let i = 0; i < W; i++) {
       const gridCoord: Coord = [i, j];
-      if(!coordsAreOnBoard(gridCoord)) {
+      if(!isOnBoard(gridCoord)) {
+        grid[j][i] = -1;
         continue;
       }
 
-      const cid = idAtCoords([i, j]);
-      grid[j][i] = cid;
-      cellIds.push(cid);
-
-      const relCoord = gridToRel(gridCoord);
-
-      //  each cell has lines `l`, vertices `v`, and neighbors `n`
-      const c: GameCell = {
-        id: cid,
-        pos: {
-          grid: gridCoord,
-          rel: relCoord,
-        },
-        l: [],
-        v: [],
-        n: [],
-      };
+      const cid = cells.length;
+      const c = initCell(cid, gridCoord);
+      c.coord = gridCoord;
       cells[cid] = c;
+      grid[j][i] = cid;
 
       //  get/define all cell neighbors, lines, & vertices
+      const nomCoord = toNom(gridCoord);
 
-      const n1 = j > 0 && cells[grid[j - 1][i]];
-      const n2 = j > 0 && cells[grid[j - 1][i + 1]];
-      const n0 = i > 0 && cells[grid[j][i - 1]];
+      const n1 = j > 0 && grid[j - 1][i] >= 0 && cells[grid[j - 1][i]];
+      const n2 = j > 0 && grid[j - 1][i + 1] >= 0 && cells[grid[j - 1][i + 1]];
+      const n0 = i > 0 && grid[j][i - 1] >= 0 && cells[grid[j][i - 1]];
       if(n1) {
         //  define n1 & reciprocal
         c.n[1] = n1;
@@ -216,16 +240,11 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
         }
         else {
           //  define v0 & add to c
-          const v0: GameVert = {
-            id: verts.length,
-            pos: {
-              rel: [
-                relCoord[0] + vertOffsets[0][0],
-                relCoord[1] + vertOffsets[0][1],
-              ],
-            },
-            l: [],
-          };
+          const vertNom: Coord = [
+            nomCoord[0] + vertOffsets[0][0],
+            nomCoord[1] + vertOffsets[0][1],
+          ];
+          const v0 = initVert(verts.length, vertNom);
           verts[v0.id] = v0;
           c.v[0] = v0;
         }
@@ -235,16 +254,11 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
         }
         else {
           //  define v1 & add to c
-          const v1: GameVert = {
-            id: verts.length,
-            pos: {
-              rel: [
-                relCoord[0] + vertOffsets[1][0],
-                relCoord[1] + vertOffsets[1][1],
-              ],
-            },
-            l: [],
-          };
+          const vertNom: Coord = [
+            nomCoord[0] + vertOffsets[1][0],
+            nomCoord[1] + vertOffsets[1][1],
+          ];
+          const v1 = initVert(verts.length, vertNom);
           verts[v1.id] = v1;
           c.v[1] = v1;
         }
@@ -262,16 +276,12 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
         c.v[2] = n2.v[4];
       }
       else {
-        const v2: GameVert = {
-          id: verts.length,
-          pos: {
-            rel: [
-              relCoord[0] + vertOffsets[2][0],
-              relCoord[1] + vertOffsets[2][1],
-            ],
-          },
-          l: [],
-        };
+        //  define v2 & add to c
+        const vertNom: Coord = [
+          nomCoord[0] + vertOffsets[2][0],
+          nomCoord[1] + vertOffsets[2][1],
+        ];
+        const v2 = initVert(verts.length, vertNom);
         verts[v2.id] = v2;
         c.v[2] = v2;
       }
@@ -288,102 +298,75 @@ export function initBoard(R: number, cellSpacing: number): GameStruct {
         c.v[5] = n0.v[3];
       }
       else {
-        const v5: GameVert = {
-          id: verts.length,
-          pos: {
-            rel: [
-              relCoord[0] + vertOffsets[5][0],
-              relCoord[1] + vertOffsets[5][1],
-            ],
-          },
-          l: [],
-        };
+        //  define v2 & add to c
+        const vertNom: Coord = [
+          nomCoord[0] + vertOffsets[5][0],
+          nomCoord[1] + vertOffsets[5][1],
+        ];
+        const v5 = initVert(verts.length, vertNom);
         verts[v5.id] = v5;
         c.v[5] = v5;
       }
 
-      //  define verts 3 and 4
+      //  define vert 4
       {
-        const v4: GameVert = {
-          id: verts.length,
-          pos: {
-            rel: [
-              relCoord[0] + vertOffsets[4][0],
-              relCoord[1] + vertOffsets[4][1],
-            ],
-          },
-          l: [],
-        };
+        const vertNom: Coord = [
+          nomCoord[0] + vertOffsets[4][0],
+          nomCoord[1] + vertOffsets[4][1],
+        ];
+        const v4 = initVert(verts.length, vertNom);
         verts[v4.id] = v4;
         c.v[4] = v4;
-
-        const v3: GameVert = {
-          id: verts.length,
-          pos: {
-            rel: [
-              relCoord[0] + vertOffsets[3][0],
-              relCoord[1] + vertOffsets[3][1],
-            ],
-          },
-          l: [],
-        };
+      }
+      //  define vert 3
+      {
+        const v3 = initVert(verts.length, [
+          nomCoord[0] + vertOffsets[3][0],
+          nomCoord[1] + vertOffsets[3][1],
+        ]);
         verts[v3.id] = v3;
         c.v[3] = v3;
       }
 
       //  define lines 0, 1, and 2 (where not available from neighboring cells)
       if(!c.l[0]) {
-        const l0: GameLine = {
-          id: lines.length,
-          c: [undefined, c],
-          v: [c.v[5], c.v[0]],
-        };
+        const l0 = initLine(lines.length, [c.v[5], c.v[0]]);
         lines[l0.id] = l0;
+        l0.c[1] = c;
         c.l[0] = l0;
       }
       if(!c.l[1]) {
-        const l1: GameLine = {
-          id: lines.length,
-          c: [undefined, c],
-          v: [c.v[0], c.v[1]],
-        };
+        const l1 = initLine(lines.length, [c.v[0], c.v[1]]);
         lines[l1.id] = l1;
+        l1.c[1] = c;
         c.l[1] = l1;
       }
       if(!c.l[2]) {
-        const l2: GameLine = {
-          id: lines.length,
-          c: [undefined, c],
-          v: [c.v[1], c.v[2]],
-        };
+        const l2 = initLine(lines.length, [c.v[1], c.v[2]]);
         lines[l2.id] = l2;
+        l2.c[1] = c;
         c.l[2] = l2;
       }
 
-      //  define lines 3, 4, and 5
+      //  define line 3
       {
-        const l3: GameLine = {
-          id: lines.length,
-          c: [c, undefined],
-          v: [c.v[3], c.v[2]],
-        };
+        const l3 = initLine(lines.length, [c.v[3], c.v[2]]);
         lines[l3.id] = l3;
+        l3.c[0] = c;
         c.l[3] = l3;
-
-        const l5: GameLine = {
-          id: lines.length,
-          c: [c, undefined],
-          v: [c.v[5], c.v[4]],
-        };
+      }
+      //  define line 5
+      {
+        const l5 = initLine(lines.length, [c.v[5], c.v[4]]);
         lines[l5.id] = l5;
+        l5.c[0] = c;
         c.l[5] = l5;
-
-        const l4: GameLine = {
-          id: lines.length,
-          c: [c, undefined],
-          v: [c.v[4], c.v[3]],
-        };
+      }
+      //  define line 4
+      {
+        const l4 = initLine(lines.length, [c.v[4], c.v[3]]);
         lines[l4.id] = l4;
+        l4.c[0] = c;
         c.l[4] = l4;
       }
     }

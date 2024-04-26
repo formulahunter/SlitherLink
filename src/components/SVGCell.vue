@@ -12,20 +12,10 @@ const props = defineProps<{
   r: number,
 }>();
 
-const polyVerts = computed(() => {
-  let verts: [number, number][] = [];
-  for(let i = 0; i < 6; i++) {
-    verts[i] = [
-      (props.cell.v[i].pos.rel[0] - props.cell.pos.rel[0]) * props.r + props.cell.pos.rel[0],
-      (props.cell.v[i].pos.rel[1] - props.cell.pos.rel[1]) * props.r + props.cell.pos.rel[1],
-    ];
-  }
-  return verts;
-});
 const dStr = computed(() => {
-  let d = `M ${polyVerts.value[0][0]} ${polyVerts.value[0][1]}`;
+  let d = `M ${props.cell.v[0].nom[0]} ${props.cell.v[0].nom[1]}`;
   for(let i = 1; i < 6; i++) {
-    d += ` L ${polyVerts.value[i][0]} ${polyVerts.value[i][1]}`;
+    d += ` L ${props.cell.v[i].nom[0]} ${props.cell.v[i].nom[1]}`;
   }
   d += ' Z';
   return d;

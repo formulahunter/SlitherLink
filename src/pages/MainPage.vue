@@ -1,21 +1,25 @@
 <script setup lang="ts">
 import BackdropImgConfig, { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGGameBoard from 'components/SVGGameBoard.vue';
-import { Ref, ref } from 'vue';
+import { initBoard } from 'src/model';
+import { computed, Ref, ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
 });
-
-const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
-
-const radius = ref(4);
 
 const navMenu = ref({
   generate: false,
   dataEntry: false,
   solve: false,
   appearance: false,
+});
+
+const radius = ref(4);
+const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
+
+const board = computed(() => {
+  return initBoard(radius.value);
 });
 
 const backdrop: Ref<BackdropImageData | undefined> = ref();
@@ -32,7 +36,7 @@ function setBackdropImg(data: BackdropImageData) {
     <div class="row page-row items-stretch justify-between">
       <div class="col view">
         <BackdropImgConfig v-if="navMenu.dataEntry" :r="radius" @setBackdrop="setBackdropImg" />
-        <SVGGameBoard v-if="navMenu.generate" :r="radius" :backdrop="backdrop" />
+        <SVGGameBoard :structure="board" :backdrop="backdrop" />
       </div>
       <div class="col-auto inputs">
         <q-list bordered>

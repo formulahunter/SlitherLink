@@ -1,6 +1,5 @@
 <script setup lang="ts">
-
-import { GameLine, LineState } from 'src/model';
+import { GameLine } from 'src/model';
 import { computed } from 'vue';
 
 defineOptions({
@@ -9,13 +8,12 @@ defineOptions({
 
 const props = defineProps<{
   line: GameLine,
-  state: LineState,
 }>();
 
 const coords = computed(() => {
   return [
-    [props.line.v[0].pos.rel[0], props.line.v[0].pos.rel[1]],
-    [props.line.v[1].pos.rel[0], props.line.v[1].pos.rel[1]],
+    [props.line.v[0].nom[0], props.line.v[0].nom[1]],
+    [props.line.v[1].nom[0], props.line.v[1].nom[1]],
   ];
 });
 </script>

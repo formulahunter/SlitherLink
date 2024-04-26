@@ -2,15 +2,15 @@
 import { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
-import { GameCell, GameLine, GameVert, initBoard, LineState } from 'src/model';
-import { computed, ComputedRef, onMounted, Ref, ref, shallowRef, toRaw } from 'vue';
+import { GameStruct } from 'src/model';
+import { computed, ComputedRef, Ref, ref, toRaw } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
 });
 
 const props = defineProps<{
-  r: number;
+  structure: GameStruct;
   backdrop?: BackdropImageData;
 }>();
 
@@ -18,13 +18,21 @@ const deg60 = Math.PI / 3;
 const sin60 = Math.sin(deg60);
 const cos60 = Math.cos(deg60);
 
-const cellSpacing = 2;
+const aspectRatio = 1.6;
+
+const cellSpacing = 1;
 const cellRadius = 0.98;
 
-const dx = cellSpacing;
-const dy = dx * sin60;
-
-const viewBox = shallowRef<[number, number, number, number]>([-5, -5, 20, 20]);
+const viewBox = computed(() => {
+  const dV = (props.structure.const.H + 2) * cellSpacing
+  const vMin = -dV / 2;
+  return [
+    vMin * aspectRatio,
+    vMin,
+    dV * aspectRatio,
+    dV,
+  ];
+});
 const viewBoxStr = computed(() => viewBox.value.join(' '));
 
 const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
@@ -73,15 +81,13 @@ function centerImage(ev: Event): void {
   // console.log(backdropX.value, backdropY.value);
 }
 
-const cells = shallowRef<GameCell[]>([]);
-const lines = shallowRef<GameLine[]>([]);
-const verts = shallowRef<GameVert[]>([]);
-
-const defCells = computed(() => cells.value.filter(c => c));
-
 //  pan & zoom parameters
 let isPanning = false;
-const panBounds = { xMin: 0, yMin: 0, xMax: 0, yMax: 0 };
+const panBounds = computed(() => {
+  const xMax = props.structure.R * cellSpacing;
+  const yMax = xMax * sin60;
+  return { xMax, yMax, xMin: -xMax, yMin: -yMax };
+});
 const panOffset: Ref<[number, number]> = ref([0, 0]);
 
 const zoomBounds = [0, 10];
@@ -113,19 +119,19 @@ function updateOffset(ev: MouseEvent): void {
   }
 
   let newX = panOffset.value[0] + ev.movementX / screenScale.value;
-  if(newX > panBounds.xMax) {
-    newX = panBounds.xMax;
+  if(newX > panBounds.value.xMax) {
+    newX = panBounds.value.xMax;
   }
-  else if(newX < panBounds.xMin) {
-    newX = panBounds.xMin;
+  else if(newX < panBounds.value.xMin) {
+    newX = panBounds.value.xMin;
   }
 
   let newY = panOffset.value[1] + ev.movementY / screenScale.value;
-  if(newY > panBounds.yMax) {
-    newY = panBounds.yMax;
+  if(newY > panBounds.value.yMax) {
+    newY = panBounds.value.yMax;
   }
-  else if(newY < panBounds.yMin) {
-    newY = panBounds.yMin;
+  else if(newY < panBounds.value.yMin) {
+    newY = panBounds.value.yMin;
   }
 
   panOffset.value = [newX, newY];
@@ -148,27 +154,6 @@ function updateZoom(ev: WheelEvent): void {
   zoomPower.value = newPower;
 }
 
-onMounted(() => {
-
-  const board = initBoard(props.r, cellSpacing);
-  cells.value = board.cells;
-  lines.value = board.lines;
-  verts.value = board.verts;
-
-  const aspectRatio = 1.6;
-  const viewH = (board.const.H + 2) * cellSpacing;
-  const viewW = viewH * aspectRatio;
-  const vMin = -viewH / 2;
-  const uMin = vMin * aspectRatio;
-
-  viewBox.value = [uMin, vMin, viewW, viewH];
-
-  panBounds.xMax = board.R * cellSpacing;
-  panBounds.yMax = panBounds.xMax * Math.sin(60 * Math.PI / 180);
-  panBounds.xMin = -panBounds.xMax;
-  panBounds.yMin = -panBounds.yMax;
-});
-
 </script>
 
 <template>
@@ -176,8 +161,8 @@ onMounted(() => {
     <svg :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
       <g :transform="transformStr">
         <image v-if="backdrop" :href="backdrop.src" :transform="backdropTransformStr" :x="backdropX" :y="backdropY" height="100%" @load="centerImage" />
-        <SVGCell v-for="c of defCells" :cell="c" :r="cellRadius" :key="c.id" />
-        <SVGLine v-for="l of lines" :line="l" :state="LineState.DEFAULT" :key="l.id" />
+        <SVGCell v-for="c of structure.cells" :cell="c" :r="cellRadius" :key="c.id" />
+        <SVGLine v-for="l of structure.lines" :line="l" :key="l.id" />
       </g>
     </svg>
   </div>
