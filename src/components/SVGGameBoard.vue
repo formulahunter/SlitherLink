@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
-import { BackdropData, GameStruct } from 'src/model';
-import { computed, ComputedRef, Ref, ref, watchEffect } from 'vue';
+import { useStore } from 'src/model';
+import { computed, ComputedRef, Ref, ref, watch, watchEffect } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
 });
 
-const props = defineProps<{
-  structure: GameStruct;
-  backdrop: BackdropData | null;
-}>();
+const store = useStore();
+const { backdrop: bd, board, models } = store;
 
 const deg60 = Math.PI / 3;
 const sin60 = Math.sin(deg60);
@@ -23,7 +21,7 @@ const cellSpacing = 1;
 const cellRadius = 0.98;
 
 const viewBox = computed<[number, number, number, number]>(() => {
-  const dV = (props.structure.const.H + 2) * cellSpacing
+  const dV = (board.value.const.H + 2) * cellSpacing
   const vMin = -dV / 2;
   return [
     vMin * aspectRatio,
@@ -38,7 +36,7 @@ const viewBoxStr = computed(() => viewBox.value.join(' '));
 const panOffset: Ref<[number, number]> = ref([0, 0]);
 let isPanning = false;
 const panBounds = computed(() => {
-  const xMax = props.structure.R * cellSpacing;
+  const xMax = board.value.R * cellSpacing;
   const yMax = xMax * sin60;
   return { xMax, yMax, xMin: -xMax, yMin: -yMax };
 });
@@ -121,7 +119,26 @@ function updateZoom(ev: WheelEvent): void {
   zoomPower.value = newPower;
 }
 
-function getBDOrdinatesFor(vb: [number, number, number, number], cb: { inlineSize: number, blockSize: number }, imageSize: [number, number]) {
+function setDefaultDatums() {
+  const ord = bdOrdinates.value;
+  if(ord === null) {
+    return;
+  }
+  models.nu0.value = ord.nu0 | 0;
+  models.nud.value = ord.nud | 0;
+  models.mur.value = ord.mur | 0;
+}
+watch(() => bd.size.value.width, (newVal) => {
+  if(bd.file.value === null || newVal === 0) {
+    return;
+  }
+  if(!Number.isNaN(models.nu0.value) || !Number.isNaN(models.nud.value) || !Number.isNaN(models.mur.value)) {
+    return;
+  }
+  setDefaultDatums();
+});
+
+function getBDOrdinatesFor(vb: [number, number, number, number], cb: { inlineSize: number, blockSize: number }, imageSize: DOMRect) {
   const dv = vb[3];
   const du = vb[2];
 
@@ -131,11 +148,11 @@ function getBDOrdinatesFor(vb: [number, number, number, number], cb: { inlineSiz
   const dy = cb.blockSize;
   const dx = cb.inlineSize;
 
-  const dmu = imageSize[0];
-  const dnu = imageSize[1];
+  const dmu = imageSize.width;
+  const dnu = imageSize.height;
 
   const vmin = vb[1];
-  const v0 = -props.structure.R * sin60;
+  const v0 = -board.value.R * sin60;
   const vr = 0;
   const vd = -v0;
   const vmax = vmin + dv;
@@ -185,15 +202,15 @@ function getBDOrdinatesFor(vb: [number, number, number, number], cb: { inlineSiz
   };
 }
 const bdOrdinates = computed(() => {
-  if(props.backdrop === null) {
+  if(bd.file.value === null) {
     return null;
   }
-  return getBDOrdinatesFor(viewBox.value, svgContentBox.value, props.backdrop.size);
+  return getBDOrdinatesFor(viewBox.value, svgContentBox.value, bd.size.value);
 });
 
 // const bdAlignTransform =
 const bdAlignTransformStr: ComputedRef<string> = computed(() => {
-  if(props.backdrop === null) {
+  if(bd.file.value === null) {
     return '';
   }
 
@@ -201,35 +218,37 @@ const bdAlignTransformStr: ComputedRef<string> = computed(() => {
   if(ord === null) {
     return '';
   }
-
-  const dat = props.backdrop.datums;
-  if(Number.isNaN(dat.nu0)) {
-    return '';
-  }
+  //
+  // if(Number.isNaN(models.nu0.value)) {
+  //   return '';
+  // }
 
   let dnu = ord.dnu;
+  if(!Number.isNaN(models.nud.value)) {
+    dnu = models.nud.value;
+  }
+  if(!Number.isNaN(models.nu0.value)) {
+    dnu -= models.nu0.value;
+  }
+  // else {
+  //   dnu = models.nud.value - models.nu0.value;
+  // }
   let s = 1;
-  if(Number.isNaN(dat.nud)) {
-    dnu -= dat.nu0;
-  }
-  else {
-    dnu = dat.nud - dat.nu0;
-  }
 
-  const dv = props.structure.R * Math.sin(Math.PI / 3);
+  const dv = board.value.R * Math.sin(Math.PI / 3);
   // const v0 = (viewBox.value[3] - dv) / 2;
-  console.debug(dnu, dv);
-  s = bdOriginTransform.value.a * (dnu / dv);
+  // s = bdOriginTransform.value.a * (dnu / dv);
+  s = dnu / ord.dnu;
   if(Number.isNaN(s) || s === 0) {
     s = 1;
   }
-  const ty = dat.nu0;
+  const ty = models.nu0.value;
 
   let tx = 0;
-  if(!Number.isNaN(dat.mur)) {
-    tx = dat.mur;
+  if(!Number.isNaN(models.mur.value)) {
+    tx = models.mur.value;
   }
-  return `scale(${ s }) translate(${ tx } ${ ty })`;
+  return `translate(${ tx } ${ ty }) scale(${ s })`;
 });
 
 const identityTransform = new DOMMatrix();
@@ -267,7 +286,7 @@ const identityTransform = new DOMMatrix();
 // });
 
 const bdOriginTransform = computed(() => {
-  if(props.backdrop === null) {
+  if(bd.file.value === null) {
     return identityTransform;
   }
 
@@ -276,7 +295,7 @@ const bdOriginTransform = computed(() => {
     return identityTransform;
   }
 
-  return identityTransform.scale(ord.dv / ord.dnu).translate(-2 * ord.mur, -ord.dnu / 2 - ord.nur);
+  return identityTransform.scale(ord.dv / ord.dnu).translate(-ord.dmu / 2, -ord.dnu / 2);
 });
 const bdOriginTransformStr = computed(() => {
   const mat = bdOriginTransform.value;
@@ -290,10 +309,10 @@ const bdOriginTransformStr = computed(() => {
     <svg ref="svgRoot" :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
       <g :transform="transformStr">
         <g :transform="bdOriginTransformStr">
-          <image v-if="backdrop !== null" :href="backdrop.href" :transform="bdAlignTransformStr"/>
+          <image v-if="bd.href.value !== ''" :href="bd.href.value" :transform="bdAlignTransformStr"/>
         </g>
-        <SVGCell v-for="c of structure.cells" :cell="c" :r="cellRadius" :key="c.id" />
-        <SVGLine v-for="l of structure.lines" :line="l" :key="l.id" />
+        <SVGCell v-for="c of board.cells" :cell="c" :r="cellRadius" :key="c.id" />
+        <SVGLine v-for="l of board.lines" :line="l" :key="l.id" />
       </g>
     </svg>
   </div>

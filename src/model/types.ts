@@ -80,15 +80,3 @@ export interface GameState {
   /** current line state (enum value) for every line on the board, indexed by id */
   l: LineState[];
 }
-
-/** backdrop image data for display as an SVG <image> */
-export interface BackdropData {
-  file: File | null;
-  size: [number, number];
-  href: string;
-  datums: {
-    nu0: number;
-    nud: number;
-    mur: number;
-  };
-}
