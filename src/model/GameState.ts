@@ -1,22 +1,5 @@
 import alea from 'alea';
-import { GameCell, GameLine, GameStruct } from 'src/model/GameStruct';
-
-export interface GameState {
-  /** generated solution as an array of line states, indexed by line id */
-  sol: LineState[];
-
-  /** cell counts generated for the solution, as array of [cell id, cell count] */
-  c: [number, number][];
-
-  /** current line state (enum value) for every line on the board, indexed by id */
-  l: LineState[];
-}
-
-export enum LineState {
-  DEFAULT,
-  FILLED,
-  EMPTY,
-}
+import { GameCell, GameLine, GameState, GameStruct, LineState } from 'src/model';
 
 
 export function initState(board: GameStruct): GameState {

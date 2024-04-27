@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { BackdropImageData } from 'components/BackdropImgConfig.vue';
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
-import { GameStruct } from 'src/model';
+import { BackdropData, GameStruct } from 'src/model';
 import { computed, ComputedRef, Ref, ref, watchEffect } from 'vue';
 
 defineOptions({
@@ -11,7 +10,7 @@ defineOptions({
 
 const props = defineProps<{
   structure: GameStruct;
-  backdrop?: BackdropImageData;
+  backdrop: BackdropData | null;
 }>();
 
 const deg60 = Math.PI / 3;
@@ -23,7 +22,7 @@ const aspectRatio = 1.6;
 const cellSpacing = 1;
 const cellRadius = 0.98;
 
-const viewBox = computed(() => {
+const viewBox = computed<[number, number, number, number]>(() => {
   const dV = (props.structure.const.H + 2) * cellSpacing
   const vMin = -dV / 2;
   return [
@@ -122,46 +121,167 @@ function updateZoom(ev: WheelEvent): void {
   zoomPower.value = newPower;
 }
 
+function getBDOrdinatesFor(vb: [number, number, number, number], cb: { inlineSize: number, blockSize: number }, imageSize: [number, number]) {
+  const dv = vb[3];
+  const du = vb[2];
 
-const backdropBB: Ref<DOMRect> = ref(DOMRect.fromRect());
-const backdropX = ref(0);
-const backdropY = ref(0);
-const backdropTransformStr: ComputedRef<string> = computed(() => {
-  const bd = props.backdrop;
-  if(!bd) {
+  const dp = 1;
+  const dq = 1;
+
+  const dy = cb.blockSize;
+  const dx = cb.inlineSize;
+
+  const dmu = imageSize[0];
+  const dnu = imageSize[1];
+
+  const vmin = vb[1];
+  const v0 = -props.structure.R * sin60;
+  const vr = 0;
+  const vd = -v0;
+  const vmax = vmin + dv;
+  const umin = vb[0];
+  const ur = 0;
+  const umax = umin + du;
+
+  const pmin = vmin / dv;
+  const p0 = v0 / dv;
+  const pr = vr / dv;
+  const pd = vd / dv;
+  const pmax = vmax / dv;
+  const qmin = umin / du;
+  const qr = ur / du;
+  const qmax = umax / du;
+
+  const ymin = (0.5 + pmin) * dy;
+  const y0 = (0.5 + p0) * dy; //  (v0 + vr) * (dy / dv)
+  const yr = (0.5 + pr) * dy;
+  const yd = (0.5 + pd) * dy;
+  const ymax = (0.5 + pmax) * dy;
+  const xmin = (0.5 + qmin) * dx;
+  const xr = (0.5 + qr) * dx;
+  const xmax = (0.5 + qmax) * dx;
+
+  const numin = (0.5 + pmin) * dnu;
+  const nu0 = (0.5 + p0) * dnu;
+  const nur = (0.5 + pr) * dnu;
+  const nud = (0.5 + pd) * dnu;
+  const numax = (0.5 + pmax) * dnu;
+  const mumin = (0.5 + qmin) * dmu;
+  const mur = (0.5 + qr) * dmu;
+  const mumax = (0.5 + qmax) * dmu;
+
+  // console.table({
+  //   nominal: { vmin,        v0,      vr,      vd,      vmax,        dv,      umin,        ur,      umax,        du, },
+  //   ratio:   { vmin: pmin,  v0: p0,  vr: pr,  vd: pd,  vmax: pmax,  dv: dp,  umin: qmin,  ur: qr,  umax: qmax,  du: dq, },
+  //   local:   { vmin: ymin,  v0: y0,  vr: yr,  vd: yd,  vmax: ymax,  dv: dy,  umin: xmin,  ur: xr,  umax: xmax,  du: dx, },
+  //   image:   { vmin: numin, v0: nu0, vr: nur, vd: nud, vmax: numax, dv: dnu, umin: mumin, ur: mur, umax: mumax, du: dmu, },
+  // });
+
+  return {
+    vmin, v0, vr, vd, vmax, dv, umin, ur, umax, du,
+    pmin, p0, pr, pd, pmax, dp, qmin, qr, qmax, dq,
+    ymin, y0, yr, yd, ymax, dy, xmin, xr, xmax, dx,
+    numin, nu0, nur, nud, numax, dnu, mumin, mur, mumax, dmu,
+  };
+}
+const bdOrdinates = computed(() => {
+  if(props.backdrop === null) {
+    return null;
+  }
+  return getBDOrdinatesFor(viewBox.value, svgContentBox.value, props.backdrop.size);
+});
+
+// const bdAlignTransform =
+const bdAlignTransformStr: ComputedRef<string> = computed(() => {
+  if(props.backdrop === null) {
     return '';
   }
 
-  const bb = backdropBB.value;
+  const ord = bdOrdinates.value;
+  if(ord === null) {
+    return '';
+  }
 
-  const gridDV = 2 * props.r * cellSpacing * sin60;
-  const imgDY = bb.height * (bd.datums.ys - bd.datums.y0);
-  const imgYR = -bb.height * (bd.datums.ys + bd.datums.y0 - 1) / 2;
-  // const imgXR = -bb.width * (bd.datums.xr)
-  return `scale(${ gridDV / imgDY }) translate(${ 0 } ${ imgYR })`;
+  const dat = props.backdrop.datums;
+  if(Number.isNaN(dat.nu0)) {
+    return '';
+  }
+
+  let dnu = ord.dnu;
+  let s = 1;
+  if(Number.isNaN(dat.nud)) {
+    dnu -= dat.nu0;
+  }
+  else {
+    dnu = dat.nud - dat.nu0;
+  }
+
+  const dv = props.structure.R * Math.sin(Math.PI / 3);
+  // const v0 = (viewBox.value[3] - dv) / 2;
+  console.debug(dnu, dv);
+  s = bdOriginTransform.value.a * (dnu / dv);
+  if(Number.isNaN(s) || s === 0) {
+    s = 1;
+  }
+  const ty = dat.nu0;
+
+  let tx = 0;
+  if(!Number.isNaN(dat.mur)) {
+    tx = dat.mur;
+  }
+  return `scale(${ s }) translate(${ tx } ${ ty })`;
 });
 
-type SVGImageLoadEvent = Event & {
-  type: 'load';
-  target: SVGImageElement;
-}
+const identityTransform = new DOMMatrix();
+// const bdBaseTransform = shallowRef(new DOMMatrix());
+// function setBDBaseTransform(ev: Event): void {
+//   if(!(ev.target instanceof SVGImageElement)) {
+//     console.debug('unexpected target %o of event %o', ev.target, ev);
+//     console.warn('invalid \'load\' event target')
+//     return;
+//   }
+//
+//   const bb = ev.target.getBBox();
+//   const vb = viewBox.value;
+//   const scale = vb[3] / props.backdrop.size[1];
+//
+//   const vmin = vb[1];
+//   const ymin = 0;
+//   const ymax = svgContentBox.value.blockSize;
+//
+//   const dy_dv = (ymax - ymin) / vb[3];
+//
+//   const v0 = -props.structure.R * Math.sin(Math.PI / 3);
+//
+//   const yr = ymax / 2;
+//   const y0 = (v0 - vmin) * dy_dv;
+//   const yd = (ymax - ymin) - y0;
+//
+//   // bdBaseTransform.value = identityTransform.scale(scale).translateSelf(-bb.width / 2, -bb.height / 2);
+//   // console.log(bdBaseTransform.value);
+//   // triggerRef(bdBaseTransform);
+// }
+// const bdBaseTransformStr = computed(() => {
+//   const mat = bdBaseTransform.value;
+//   return `matrix(${mat.a} ${mat.b} ${mat.c} ${mat.d} ${mat.e} ${mat.f})`;
+// });
 
-function assertIsSVGImageLoadEvent(ev: Event): asserts ev is SVGImageLoadEvent {
-  if(!(ev.type === 'load' && ev.target instanceof SVGImageElement)) {
-    console.warn('expected %o to be a \'load\' event on the SVG <image> element', ev);
-    throw new TypeError(`incompatible event type '${ev.type}' with target ${ev.target}`);
+const bdOriginTransform = computed(() => {
+  if(props.backdrop === null) {
+    return identityTransform;
   }
-}
 
-function centerImage(ev: Event): void {
-  assertIsSVGImageLoadEvent(ev);
+  const ord = bdOrdinates.value;
+  if(ord === null) {
+    return identityTransform;
+  }
 
-  backdropBB.value = ev.target.getBBox();
-  backdropX.value = -backdropBB.value.width / 2;
-  backdropY.value = -backdropBB.value.height / 2;
-  // console.log(backdropBB.value);
-  // console.log(backdropX.value, backdropY.value);
-}
+  return identityTransform.scale(ord.dv / ord.dnu).translate(-2 * ord.mur, -ord.dnu / 2 - ord.nur);
+});
+const bdOriginTransformStr = computed(() => {
+  const mat = bdOriginTransform.value;
+  return `matrix(${mat.a} ${mat.b} ${mat.c} ${mat.d} ${mat.e} ${mat.f})`;
+});
 
 </script>
 
@@ -169,7 +289,9 @@ function centerImage(ev: Event): void {
   <div>
     <svg ref="svgRoot" :viewBox="viewBoxStr" xmlns="http://www.w3.org/2000/svg" @mousedown="startPanning" @mouseup="stopPanning" @mousemove="updateOffset" @wheel.prevent="updateZoom">
       <g :transform="transformStr">
-        <image v-if="backdrop" :href="backdrop.src" :transform="backdropTransformStr" :x="backdropX" :y="backdropY" height="100%" @load="centerImage" />
+        <g :transform="bdOriginTransformStr">
+          <image v-if="backdrop !== null" :href="backdrop.href" :transform="bdAlignTransformStr"/>
+        </g>
         <SVGCell v-for="c of structure.cells" :cell="c" :r="cellRadius" :key="c.id" />
         <SVGLine v-for="l of structure.lines" :line="l" :key="l.id" />
       </g>
