@@ -238,8 +238,8 @@ function getBDOrdinatesFor(R: number, vb: [number, number, number, number], cb: 
   const dv = vb[3];
   const du = vb[2];
 
-  const dp = 1;
   const dq = 1;
+  const dp = 1;
 
   const dy = cb.blockSize;
   const dx = cb.inlineSize;
@@ -256,45 +256,45 @@ function getBDOrdinatesFor(R: number, vb: [number, number, number, number], cb: 
   const ur = 0;
   const umax = umin + du;
 
-  const pmin = vmin / dv;
-  const p0 = v0 / dv;
-  const pr = vr / dv;
-  const pd = vd / dv;
-  const pmax = vmax / dv;
-  const qmin = umin / du;
-  const qr = ur / du;
-  const qmax = umax / du;
+  const qmin = vmin / dv;
+  const q0 = v0 / dv;
+  const qr = vr / dv;
+  const qd = vd / dv;
+  const qmax = vmax / dv;
+  const pmin = umin / du;
+  const pr = ur / du;
+  const pmax = umax / du;
 
-  const ymin = (0.5 + pmin) * dy;
-  const y0 = (0.5 + p0) * dy; //  (v0 + vr) * (dy / dv)
-  const yr = (0.5 + pr) * dy;
-  const yd = (0.5 + pd) * dy;
-  const ymax = (0.5 + pmax) * dy;
-  const xmin = (0.5 + qmin) * dx;
-  const xr = (0.5 + qr) * dx;
-  const xmax = (0.5 + qmax) * dx;
+  const ymin = (0.5 + qmin) * dy;
+  const y0 = (0.5 + q0) * dy; //  (v0 + vr) * (dy / dv)
+  const yr = (0.5 + qr) * dy;
+  const yd = (0.5 + qd) * dy;
+  const ymax = (0.5 + qmax) * dy;
+  const xmin = (0.5 + pmin) * dx;
+  const xr = (0.5 + pr) * dx;
+  const xmax = (0.5 + pmax) * dx;
 
-  const numin = (0.5 + pmin) * dnu;
-  const nu0 = (0.5 + p0) * dnu;
-  const nur = (0.5 + pr) * dnu;
-  const nud = (0.5 + pd) * dnu;
-  const numax = (0.5 + pmax) * dnu;
-  const mumin = (0.5 + qmin) * dmu;
-  const mur = (0.5 + qr) * dmu;
-  const mumax = (0.5 + qmax) * dmu;
+  const numin = (0.5 + qmin) * dnu;
+  const nu0 = (0.5 + q0) * dnu;
+  const nur = (0.5 + qr) * dnu;
+  const nud = (0.5 + qd) * dnu;
+  const numax = (0.5 + qmax) * dnu;
+  const mumin = (0.5 + pmin) * dmu;
+  const mur = (0.5 + pr) * dmu;
+  const mumax = (0.5 + pmax) * dmu;
 
   // console.table({
-  //   nominal: { vmin,        v0,      vr,      vd,      vmax,        dv,      umin,        ur,      umax,        du, },
-  //   ratio:   { vmin: pmin,  v0: p0,  vr: pr,  vd: pd,  vmax: pmax,  dv: dp,  umin: qmin,  ur: qr,  umax: qmax,  du: dq, },
-  //   local:   { vmin: ymin,  v0: y0,  vr: yr,  vd: yd,  vmax: ymax,  dv: dy,  umin: xmin,  ur: xr,  umax: xmax,  du: dx, },
-  //   image:   { vmin: numin, v0: nu0, vr: nur, vd: nud, vmax: numax, dv: dnu, umin: mumin, ur: mur, umax: mumax, du: dmu, },
+  //   nominal:     { umin,        ur,      umax,        du,      vmin,        v0,      vr,      vd,      vmax,        dv,      },
+  //   fractional:  { umin: pmin,  ur: pr,  umax: pmax,  du: dp,  vmin: pmin,  v0: p0,  vr: pr,  vd: pd,  vmax: pmax,  dv: dp,  },
+  //   local:       { umin: xmin,  ur: xr,  umax: xmax,  du: dx,  vmin: ymin,  v0: y0,  vr: yr,  vd: yd,  vmax: ymax,  dv: dy,  },
+  //   image:       { umin: mumin, ur: mur, umax: mumax, du: dmu, vmin: numin, v0: nu0, vr: nur, vd: nud, vmax: numax, dv: dnu, },
   // });
 
   return {
-    vmin, v0, vr, vd, vmax, dv, umin, ur, umax, du,
-    pmin, p0, pr, pd, pmax, dp, qmin, qr, qmax, dq,
-    ymin, y0, yr, yd, ymax, dy, xmin, xr, xmax, dx,
-    numin, nu0, nur, nud, numax, dnu, mumin, mur, mumax, dmu,
+    umin,  ur,  umax,  du,  vmin,  v0,  vr,  vd,  vmax,  dv,
+    pmin,  pr,  pmax,  dp,  qmin,  q0,  qr,  qd,  qmax,  dq,
+    xmin,  xr,  xmax,  dx,  ymin,  y0,  yr,  yd,  ymax,  dy,
+    mumin, mur, mumax, dmu, numin, nu0, nur, nud, numax, dnu,
   };
 }
 const bdOrdinates = computed(() => {
