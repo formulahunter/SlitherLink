@@ -257,11 +257,11 @@ const bdOriginTransformStr = computed(() => {
   return `matrix(${mat.a} ${mat.b} ${mat.c} ${mat.d} ${mat.e} ${mat.f})`;
 });
 
-export function useBackdrop(board: MaybeRefOrGetter<number>, svg: {
+export function useBackdrop(R: MaybeRefOrGetter<number>, svg: {
   vb: MaybeRef<[number, number, number, number]>,
   cb: MaybeRef<{ inlineSize: number, blockSize: number }>}) {
   watchEffect(() => {
-    boardR.value = toValue(board);
+    boardR.value = toValue(R);
   });
   watchEffect(() => {
     viewBox.value = toValue(svg.vb);

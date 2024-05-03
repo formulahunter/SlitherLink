@@ -2,7 +2,6 @@
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
 import { useStore } from 'src/model';
-import { ref } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
@@ -10,12 +9,7 @@ defineOptions({
 
 const cellRadius = 0.98;
 
-const { bd, board, pz, svg } = useStore();
-
-const input = ref({
-  vals: new Array(board.value.cells.length),
-  ind: 0,
-});
+const { bd, game, input, pz, svg } = useStore();
 
 let keyLock: string | false = false;
 
@@ -45,7 +39,7 @@ function advanceCell(ev: KeyboardEvent) {
   //  delete ==> clear & next
   //  backspace ==> clear & prev
   if(ev.key.startsWith('Arrow')) {
-    const c = board.value.cells[input.value.ind];
+    const c = game.struct.value.cells[input.value.ind];
     let n;
     if(ev.key === 'ArrowDown') {
       n = c.n[4] || c.n[5];
@@ -87,8 +81,8 @@ function advanceCell(ev: KeyboardEvent) {
         <g :transform="bd.originStr.value">
           <image v-if="bd.href.value !== ''" :href="bd.href.value" :transform="bd.alignStr.value"/>
         </g>
-        <SVGCell v-for="c of board.cells" :cell="c" :r="cellRadius" :count="input.vals[c.id]" :focused="c.id === input.ind" :key="c.id" />
-        <SVGLine v-for="l of board.lines" :line="l" :focused="l.c.map(c => c?.id).includes(input.ind)" :key="l.id" />
+        <SVGCell v-for="c of game.struct.value.cells" :cell="c" :r="cellRadius" :count="input.vals[c.id]" :focused="c.id === input.ind" :key="c.id" />
+        <SVGLine v-for="l of game.struct.value.lines" :line="l" :focused="l.c.map(c => c?.id).includes(input.ind)" :key="l.id" />
       </g>
     </svg>
   </div>
