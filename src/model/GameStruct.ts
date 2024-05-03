@@ -36,6 +36,7 @@ function initCell(id: number, ij: Coord): GameCell {
   return {
     id,
     coord: ij,
+    uv: [0, 0],
     l: [],
     v: [],
     n: [],
@@ -148,6 +149,7 @@ export function initBoard(R: number): GameStruct {
       const cid = cells.length;
       const c = initCell(cid, gridCoord);
       c.coord = gridCoord;
+      c.uv = toNom(gridCoord);
       cells[cid] = c;
       grid[j][i] = cid;
 

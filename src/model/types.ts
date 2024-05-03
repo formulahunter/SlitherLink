@@ -16,6 +16,8 @@ export interface GameCell {
   /** grid coordinates (i, j) */
   coord: Coord;
 
+  uv: Coord;
+
   /** cell lines, indexed clockwise from left */
   l: GameLine[];
 

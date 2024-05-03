@@ -8,8 +8,10 @@ defineOptions({
 });
 
 const props = defineProps<{
-  cell: GameCell,
-  r: number,
+  cell: GameCell;
+  r: number;
+  count?: number;
+  focused?: boolean;
 }>();
 
 const dStr = computed(() => {
@@ -24,11 +26,24 @@ const dStr = computed(() => {
 </script>
 
 <template>
-  <path :d="dStr" fill="#eeeeeeb0" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)" :data-verts="cell.v.map(v => v.id)"/>
+  <g>
+    <path :d="dStr" :fill="focused ? '#ccccccb0' : '#eeeeeeb0'" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)"
+          :data-verts="cell.v.map(v => v.id)"/>
+    <text v-if="count !== undefined" class="count" :x="cell.uv[0]" :y="cell.uv[1]" fill="black">
+      {{ count }}
+    </text>
+  </g>
 </template>
 
 <style scoped lang="sass">
 text.cell-id
     font-size: 1px
+
+text.count
+  font-family: monospace
+  font-size: 0.5pt
+  text-anchor: middle
+  dominant-baseline: central
+
 
 </style>
