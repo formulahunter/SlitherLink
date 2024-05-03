@@ -8,7 +8,7 @@ defineOptions({
   name: 'MainPage',
 });
 
-const { view: { backdrop: bd }, input, models } = useStore();
+const { view: { backdrop: bd }, game, input, models } = useStore();
 
 const inputValCount = computed(() => input.value.vals.filter(v => typeof v === 'number').length);
 
@@ -33,18 +33,40 @@ const saveLevel: Ref<QSelectOption> = ref(levelOptions[0]);
 const saveSize: Ref<QSelectOption> = ref(sizeOptions[0]);
 const saveId = ref('');
 
-function showConfirm() {
+function showConfirmSave() {
   saveSize.value = saveSizeFromR[models.R.value];
   saveLevel.value = levelOptions[3];
   confirmSave.value = true;
 }
 async function saveCSV() {
+  const { cells, grid } = game.struct.value;
+
+  let csvStr = '';
+  for(let j = 0; j < grid.length; j++) {
+    csvStr += (input.value.vals[grid[j][0]] || ' ');
+    for(let i = 1; i < grid[j].length; i++) {
+      csvStr += ',' + (input.value.vals[grid[j][i]] || ' ');
+    }
+    csvStr += '\n';
+  }
   const restInit = {
     method: 'POST',
-    body: input.value.vals.join(','),
+    body: csvStr,
   };
   const url = `/api/csv/${ saveSize.value?.value }/${ saveLevel?.value.value }/${ saveId.value }`;
   await fetch(url, restInit);
+}
+
+function showConfirmClear() {
+  confirmClear.value = true;
+}
+function clearInputData() {
+  console.log('clearing input data');
+  for(let i = 0; i < input.value.vals.length; i++) {
+    delete input.value.vals[i];
+  }
+  input.value.ind = 0;
+  saveId.value = '';
 }
 
 </script>
@@ -130,9 +152,9 @@ async function saveCSV() {
                 </q-list>
               </q-card-section>
               <q-card-actions>
-                <q-btn label="Clear" @click="confirmClear = true" />
+                <q-btn label="Clear" @click="showConfirmClear" />
                 <q-space />
-                <q-btn label="Save" @click="showConfirm()" color="primary" :disabled="inputValCount === 0" />
+                <q-btn label="Save" @click="showConfirmSave" color="primary" :disabled="inputValCount === 0" />
               </q-card-actions>
             </q-card>
           </q-expansion-item>
@@ -185,6 +207,18 @@ async function saveCSV() {
           <q-btn label="Cancel" v-close-popup />
           <q-space></q-space>
           <q-btn label="Confirm" color="primary" @click="saveCSV" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <q-dialog v-model="confirmClear" no-backdrop-dismiss>
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">Are you sure? <span class="text-warning">There's no going back!</span></div>
+        </q-card-section>
+        <q-card-actions align="right" class="text-primary">
+          <q-btn label="Nevermind" outline color="primary" v-close-popup />
+          <q-space></q-space>
+          <q-btn label="I'm sure" outline color="warning" @click="clearInputData()" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>

@@ -314,8 +314,9 @@ export function initBoard(R: number): GameStruct {
   return {
     R,
     const: { D, S, W, H, G, C, L, V },
-    cells,
-    lines,
     verts,
+    lines,
+    cells,
+    grid,
   };
 }
