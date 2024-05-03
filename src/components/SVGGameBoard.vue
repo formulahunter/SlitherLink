@@ -9,7 +9,8 @@ defineOptions({
 
 const cellRadius = 0.98;
 
-const { bd, game, input, view } = useStore();
+const { game, input, view } = useStore();
+const { backdrop: bd, global, svg } = view;
 
 let keyLock: string | false = false;
 
@@ -76,8 +77,8 @@ function advanceCell(ev: KeyboardEvent) {
 
 <template>
   <div>
-    <svg :viewBox="view.svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => view.pan.start()" @mouseup="() => view.pan.stop()" @mousemove="(ev) => view.pan.update(ev)" @wheel.prevent="(ev) => view.zoom.update(ev)">
-      <g :transform="view.globalTransformStr.value">
+    <svg :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => global.pan.start()" @mouseup="() => global.pan.stop()" @mousemove="(ev) => global.pan.update(ev)" @wheel.prevent="(ev) => global.zoom.update(ev)">
+      <g :transform="global.transformStr.value">
         <g :transform="bd.originStr.value">
           <image v-if="bd.href.value !== ''" :href="bd.href.value" :transform="bd.alignStr.value"/>
         </g>

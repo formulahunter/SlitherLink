@@ -8,7 +8,7 @@ defineOptions({
   name: 'MainPage',
 });
 
-const { bd, input, models } = useStore();
+const { view: { backdrop: bd }, input, models } = useStore();
 
 const inputValCount = computed(() => input.value.vals.filter(v => typeof v === 'number').length);
 
@@ -44,8 +44,7 @@ async function saveCSV() {
     body: input.value.vals.join(','),
   };
   const url = `/api/csv/${ saveSize.value?.value }/${ saveLevel?.value.value }/${ saveId.value }`;
-  console.debug(url);
-  // await fetch(url, restInit);
+  await fetch(url, restInit);
 }
 
 </script>
