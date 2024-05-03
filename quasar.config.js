@@ -7,10 +7,81 @@
 
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-js
+const express = require('express');
+const { mkdir, writeFile } = require('node:fs/promises');
+const path = require('node:path');
+// import { defineConfig } from 'vite';
+const vue = require('@vitejs/plugin-vue');
 
 
 const { configure } = require('quasar/wrappers');
 
+async function saveHandler (req, res) {
+  console.log(req.path);
+  console.log(req.route);
+  console.log(req.baseUrl);
+  console.log(req.originalUrl);
+  console.log(req.params);
+  let body = '';
+  for await(const chunk of req) {
+    body += chunk;
+  }
+  // console.log(body.length);
+
+  //  write the data to a file
+  const data = JSON.parse(body);
+  const {size, level, id} = data;
+
+  const reldir = path.join('samples', `${size}_${level}`);
+  const dirpath = path.resolve(reldir);
+  // console.log('verifying directory exists:');
+  // console.log(dirpath);
+  await mkdir(dirpath, { recursive: true });
+
+  const relpath = path.join('samples', `${size}_${level}`, id + '.csv');
+  const filepath = path.resolve(relpath);
+  // console.log('saving file to path: ');
+  // console.log(filepath);
+  await writeFile(filepath, data.csv);
+  console.log('saved file ' + relpath);
+
+  // console.log(data.csv.length);
+  res.end();
+}
+async function saveHandler (req, res) {
+  let body = '';
+  for await(const chunk of req) {
+    body += chunk;
+  }
+
+  //  write the data to a file
+  const data = body;
+  const { size, level, id } = req.params;
+
+  const reldir = path.join('samples', size, level);
+  const dirpath = path.resolve(reldir);
+  // console.log('verifying directory exists:');
+  // console.log(dirpath);
+  await mkdir(dirpath, { recursive: true });
+
+  const relpath = path.join('samples', size, level, id + '.csv');
+  const filepath = path.resolve(relpath);
+  // console.log('saving file to path: ');
+  // console.log(filepath);
+  await writeFile(filepath, body);
+  console.log(`saved ${ body.length } B to ./${ relpath }`);
+  res.end();
+}
+
+const saveCSVPlugin = () => ({
+  name: 'save-csv',
+  configureServer(server) {
+    const api = express.Router();
+    api.post('/csv/:size/:level/:id', saveHandler);
+
+    server.middlewares.use('/api', api);
+  }
+});
 
 module.exports = configure(function (/* ctx */) {
   return {
@@ -74,6 +145,7 @@ module.exports = configure(function (/* ctx */) {
       // vitePlugins: [
       //   [ 'package-name', { ..pluginOptions.. }, { server: true, client: true } ]
       // ]
+      vitePlugins: [ saveCSVPlugin() ],
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-js#devServer

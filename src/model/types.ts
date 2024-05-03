@@ -66,9 +66,10 @@ export interface GameStruct {
     L: number;
     V: number;
   };
-  cells: GameCell[];
-  lines: GameLine[];
   verts: GameVert[];
+  lines: GameLine[];
+  cells: GameCell[];
+  grid: number[][];
 }
 
 /** data representing the point-in-time state of the game board */

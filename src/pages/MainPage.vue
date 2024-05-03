@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import SVGGameBoard from 'components/SVGGameBoard.vue';
+import { QSelectOption } from 'quasar';
 import { useStore } from 'src/model';
-import { ref } from 'vue';
+import { computed, Ref, ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
 });
 
-const { bd, models } = useStore();
+const { view: { backdrop: bd }, game, data, models } = useStore();
+
+const inputValCount = computed(() => data.input.vals.value.filter(v => typeof v === 'number').length);
 
 const navMenu = ref({
   structure: false,
@@ -17,6 +20,54 @@ const navMenu = ref({
 });
 
 const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
+
+const confirmSave = ref(false);
+const confirmClear = ref(false);
+
+const levelOptions: QSelectOption[] = [{ label: 'Easy', value: 'easy' }, { label: 'Normal', value: 'norm' }, { label: 'Hard', value: 'hard' }, { label: 'test', value: 'test' }];
+const sizeOptions: (QSelectOption & { R: number })[] = [{ label: 'Small', value: 'small', R: 2 }, { label: 'Medium', value: 'med', R: 4 }, { label: 'Large', value: 'large', R: 8 }, { label: 'Huge', value: 'huge', R: 11 }];
+const saveSizeFromR: (QSelectOption & { R: number })[] = [];
+sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
+
+const saveLevel: Ref<QSelectOption> = ref(levelOptions[0]);
+const saveSize: Ref<QSelectOption> = ref(sizeOptions[0]);
+const saveId = ref('');
+
+function showConfirmSave() {
+  saveSize.value = saveSizeFromR[models.R.value];
+  saveLevel.value = levelOptions[3];
+  confirmSave.value = true;
+}
+async function saveCSV() {
+  const { grid } = game.struct.value;
+
+  let csvStr = '';
+  for(let j = 0; j < grid.length; j++) {
+    csvStr += (data.input.vals.value[grid[j][0]] || ' ');
+    for(let i = 1; i < grid[j].length; i++) {
+      csvStr += ',' + (data.input.vals.value[grid[j][i]] || ' ');
+    }
+    csvStr += '\n';
+  }
+  const restInit = {
+    method: 'POST',
+    body: csvStr,
+  };
+  const url = `/api/csv/${ saveSize.value?.value }/${ saveLevel?.value.value }/${ saveId.value }`;
+  await fetch(url, restInit);
+}
+
+function showConfirmClear() {
+  confirmClear.value = true;
+}
+function clearInputData() {
+  console.log('clearing input data');
+  for(let i = 0; i < data.input.vals.value.length; i++) {
+    delete data.input.vals.value[i];
+  }
+  data.input.ind.value = 0;
+  saveId.value = '';
+}
 
 </script>
 
@@ -100,6 +151,11 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
                   </q-item>
                 </q-list>
               </q-card-section>
+              <q-card-actions>
+                <q-btn label="Clear" @click="showConfirmClear" />
+                <q-space />
+                <q-btn label="Save" @click="showConfirmSave" color="primary" :disabled="inputValCount === 0" />
+              </q-card-actions>
             </q-card>
           </q-expansion-item>
           <q-expansion-item v-model="navMenu.state" group="main_nav" label="State" icon="o_extension" expand-separator >
@@ -111,6 +167,61 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
         </q-list>
       </div>
     </div>
+
+    <q-dialog v-model="confirmSave" no-backdrop-dismiss>
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">File details:</div>
+        </q-card-section>
+
+        <q-card-section>
+          <q-list>
+            <q-item>
+              <q-item-section>
+                <q-item-label>
+                  <label for="saveSizeInput">Board size:</label>
+                </q-item-label>
+                <q-select id="saveSizeInput" v-model="saveSize" :options="sizeOptions" label="Board size"></q-select>
+              </q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section>
+                <q-item-label>
+                  <label for="saveLevelInput">Difficulty level:</label>
+                </q-item-label>
+                <q-select id="saveLevelInput" v-model="saveLevel" :options="levelOptions" label="Difficulty level"></q-select>
+              </q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section>
+                <q-item-label>
+                  <label for="saveIdInput">Puzzle id:</label>
+                </q-item-label>
+                <q-input id="saveIdInput" v-model="saveId" autofocus></q-input>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="right" class="text-primary">
+          <q-btn label="Cancel" v-close-popup />
+          <q-space></q-space>
+          <q-btn label="Confirm" color="primary" @click="saveCSV" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <q-dialog v-model="confirmClear" no-backdrop-dismiss>
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">Are you sure? <span class="text-warning">There's no going back!</span></div>
+        </q-card-section>
+        <q-card-actions align="right" class="text-primary">
+          <q-btn label="Nevermind" outline color="primary" v-close-popup />
+          <q-space></q-space>
+          <q-btn label="I'm sure" outline color="warning" @click="clearInputData()" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 

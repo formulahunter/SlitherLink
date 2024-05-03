@@ -15,6 +15,7 @@ lib/
 
 #  Ignore user data files
 data/*
+samples/*
 
 #  Ignore log files
 log/*

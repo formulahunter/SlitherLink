@@ -9,11 +9,12 @@ defineOptions({
 
 const cellRadius = 0.98;
 
-const { bd, game, input, pz, svg } = useStore();
+const { game, data, view } = useStore();
+const { backdrop: bd, global, svg } = view;
 
 let keyLock: string | false = false;
 
-function setCount(ev: KeyboardEvent) {
+function setCellCount(ev: KeyboardEvent) {
   if(keyLock) {
     return false;
   }
@@ -21,13 +22,12 @@ function setCount(ev: KeyboardEvent) {
 
   const val = Number(ev.key);
   if(!Number.isNaN(val) && val < 6) {
-    input.value.vals[input.value.ind] = val;
+    data.input.vals.value[data.input.ind.value] = val;
   }
   else if(ev.key === 'Backspace' || ev.key === 'Delete') {
-    delete input.value.vals[input.value.ind];
+    delete data.input.vals.value[data.input.ind.value];
   }
 }
-
 function advanceCell(ev: KeyboardEvent) {
   if(keyLock && ev.key !== keyLock) {
     return false;
@@ -39,7 +39,7 @@ function advanceCell(ev: KeyboardEvent) {
   //  delete ==> clear & next
   //  backspace ==> clear & prev
   if(ev.key.startsWith('Arrow')) {
-    const c = game.struct.value.cells[input.value.ind];
+    const c = game.struct.value.cells[data.input.ind.value];
     let n;
     if(ev.key === 'ArrowDown') {
       n = c.n[4] || c.n[5];
@@ -55,19 +55,19 @@ function advanceCell(ev: KeyboardEvent) {
     }
 
     if(n !== undefined) {
-      input.value.ind = n.id;
+      data.input.ind.value = n.id;
     }
   }
   else if(ev.key === 'Backspace' || ev.shiftKey) {
-    input.value.ind--;
-    if(input.value.ind < 0) {
-      input.value.ind = input.value.vals.length - 1;
+    data.input.ind.value--;
+    if(data.input.ind.value < 0) {
+      data.input.ind.value = data.input.vals.value.length - 1;
     }
   }
   else {
-    input.value.ind++;
-    if(input.value.ind >= input.value.vals.length) {
-      input.value.ind = 0;
+    data.input.ind.value++;
+    if(data.input.ind.value >= data.input.vals.value.length) {
+      data.input.ind.value = 0;
     }
   }
 }
@@ -76,18 +76,20 @@ function advanceCell(ev: KeyboardEvent) {
 
 <template>
   <div>
-    <svg ref="svgRoot" :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => pz.startPanning()" @mouseup="() => pz.stopPanning()" @mousemove="(ev) => pz.updateOffset(ev)" @wheel.prevent="(ev) => pz.updateZoom(ev)">
-      <g :transform="pz.transformStr.value">
+    <svg :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => global.pan.start()" @mouseup="() => global.pan.stop()" @mousemove="(ev) => global.pan.update(ev)" @wheel.prevent="(ev) => global.zoom.update(ev)">
+      <g :transform="global.transformStr.value">
         <g :transform="bd.originStr.value">
           <image v-if="bd.href.value !== ''" :href="bd.href.value" :transform="bd.alignStr.value"/>
         </g>
-        <SVGCell v-for="c of game.struct.value.cells" :cell="c" :r="cellRadius" :count="input.vals[c.id]" :focused="c.id === input.ind" :key="c.id" />
-        <SVGLine v-for="l of game.struct.value.lines" :line="l" :focused="l.c.map(c => c?.id).includes(input.ind)" :key="l.id" />
+        <SVGCell v-for="c of game.struct.value.cells" :cell="c" :r="cellRadius" :count="data.input.vals.value[c.id]" :focused="c.id === data.input.ind.value" :key="c.id" />
+        <SVGLine v-for="l of game.struct.value.lines" :line="l" :focused="l.c.map(c => c?.id).includes(data.input.ind.value)" :key="l.id" />
       </g>
     </svg>
   </div>
 </template>
 
-<style scoped>
+<style lang="sass">
+svg *
+  vector-effect: non-scaling-stroke
 
 </style>
