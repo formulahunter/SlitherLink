@@ -1,6 +1,5 @@
 import { useBackdrop } from 'src/composables/useBackdrop';
 import { useGame } from 'src/composables/useGame';
-import { usePanZoom } from 'src/composables/usePanZoom';
 import { useSVGView } from 'src/composables/useSVGView';
 import { ref } from 'vue';
 
@@ -8,9 +7,8 @@ import { ref } from 'vue';
 const radius = ref(4);
 const game = useGame(radius);
 
-const svg = useSVGView(() => game.struct.value.const.H);
-const pz = usePanZoom(radius, svg);
-const bd = useBackdrop(radius, svg);
+const view = useSVGView(radius);
+const bd = useBackdrop(radius, view.svg);
 
 const input = ref({
   vals: new Array(game.struct.value.cells.length),
@@ -20,8 +18,7 @@ const input = ref({
 export function useStore() {
   return {
     game,
-    svg,
-    pz,
+    view,
     bd,
     input,
     models: { R: radius },
