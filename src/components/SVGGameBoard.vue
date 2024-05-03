@@ -124,9 +124,9 @@ function setDefaultDatums() {
   if(ord === null) {
     return;
   }
-  models.nu0.value = ord.nu0 | 0;
-  models.nud.value = ord.nud | 0;
-  models.mur.value = ord.mur | 0;
+  models.nu0.value = Math.round(ord.nu0);
+  models.nud.value = Math.round(ord.nud);
+  models.mur.value = Math.round(ord.mur);
 }
 watch(() => bd.size.value.width, (newVal) => {
   if(bd.file.value === null || newVal === 0) {
@@ -208,7 +208,6 @@ const bdOrdinates = computed(() => {
   return getBDOrdinatesFor(viewBox.value, svgContentBox.value, bd.size.value);
 });
 
-// const bdAlignTransform =
 const bdAlignTransformStr: ComputedRef<string> = computed(() => {
   if(bd.file.value === null) {
     return '';
@@ -218,72 +217,12 @@ const bdAlignTransformStr: ComputedRef<string> = computed(() => {
   if(ord === null) {
     return '';
   }
-  //
-  // if(Number.isNaN(models.nu0.value)) {
-  //   return '';
-  // }
 
-  let dnu = ord.dnu;
-  if(!Number.isNaN(models.nud.value)) {
-    dnu = models.nud.value;
-  }
-  if(!Number.isNaN(models.nu0.value)) {
-    dnu -= models.nu0.value;
-  }
-  // else {
-  //   dnu = models.nud.value - models.nu0.value;
-  // }
-  let s = 1;
-
-  const dv = board.value.R * Math.sin(Math.PI / 3);
-  // const v0 = (viewBox.value[3] - dv) / 2;
-  // s = bdOriginTransform.value.a * (dnu / dv);
-  s = dnu / ord.dnu;
-  if(Number.isNaN(s) || s === 0) {
-    s = 1;
-  }
-  const ty = models.nu0.value;
-
-  let tx = 0;
-  if(!Number.isNaN(models.mur.value)) {
-    tx = models.mur.value;
-  }
-  return `translate(${ tx } ${ ty }) scale(${ s })`;
+  const s = (ord.nud - ord.nu0) / (models.nud.value - models.nu0.value);
+  return `translate(${ ord.mur } ${ ord.nu0 }) scale(${ s }) translate(${ (-models.mur.value) } ${ (-models.nu0.value) })`;
 });
 
 const identityTransform = new DOMMatrix();
-// const bdBaseTransform = shallowRef(new DOMMatrix());
-// function setBDBaseTransform(ev: Event): void {
-//   if(!(ev.target instanceof SVGImageElement)) {
-//     console.debug('unexpected target %o of event %o', ev.target, ev);
-//     console.warn('invalid \'load\' event target')
-//     return;
-//   }
-//
-//   const bb = ev.target.getBBox();
-//   const vb = viewBox.value;
-//   const scale = vb[3] / props.backdrop.size[1];
-//
-//   const vmin = vb[1];
-//   const ymin = 0;
-//   const ymax = svgContentBox.value.blockSize;
-//
-//   const dy_dv = (ymax - ymin) / vb[3];
-//
-//   const v0 = -props.structure.R * Math.sin(Math.PI / 3);
-//
-//   const yr = ymax / 2;
-//   const y0 = (v0 - vmin) * dy_dv;
-//   const yd = (ymax - ymin) - y0;
-//
-//   // bdBaseTransform.value = identityTransform.scale(scale).translateSelf(-bb.width / 2, -bb.height / 2);
-//   // console.log(bdBaseTransform.value);
-//   // triggerRef(bdBaseTransform);
-// }
-// const bdBaseTransformStr = computed(() => {
-//   const mat = bdBaseTransform.value;
-//   return `matrix(${mat.a} ${mat.b} ${mat.c} ${mat.d} ${mat.e} ${mat.f})`;
-// });
 
 const bdOriginTransform = computed(() => {
   if(bd.file.value === null) {
