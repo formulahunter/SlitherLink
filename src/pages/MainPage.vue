@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import SVGGameBoard from 'components/SVGGameBoard.vue';
 import { useStore } from 'src/model';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
 });
 
-const { bd, models } = useStore();
+const { bd, input, models } = useStore();
+
+const inputValCount = computed(() => input.value.vals.filter(v => typeof v === 'number').length);
 
 const navMenu = ref({
   structure: false,
@@ -17,6 +19,13 @@ const navMenu = ref({
 });
 
 const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
+
+function confirmSave() {
+
+}
+function confirmClear() {
+
+}
 
 </script>
 
@@ -100,6 +109,11 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
                   </q-item>
                 </q-list>
               </q-card-section>
+              <q-card-actions>
+                <q-btn label="Clear" @click="confirmClear" />
+                <q-space />
+                <q-btn label="Save" @click="confirmSave" color="primary" :disabled="inputValCount === 0" />
+              </q-card-actions>
             </q-card>
           </q-expansion-item>
           <q-expansion-item v-model="navMenu.state" group="main_nav" label="State" icon="o_extension" expand-separator >
