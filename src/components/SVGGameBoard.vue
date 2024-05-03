@@ -88,6 +88,8 @@ function advanceCell(ev: KeyboardEvent) {
   </div>
 </template>
 
-<style scoped>
+<style lang="sass">
+svg *
+  vector-effect: non-scaling-stroke
 
 </style>

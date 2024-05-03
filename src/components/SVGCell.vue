@@ -36,8 +36,8 @@ const dStr = computed(() => {
 </template>
 
 <style scoped lang="sass">
-text.cell-id
-    font-size: 1px
+g:focus-visible
+  outline: none
 
 text.count
   font-family: monospace
