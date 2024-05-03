@@ -24,8 +24,13 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 const confirmSave = ref(false);
 const confirmClear = ref(false);
 
-const saveLevel: Ref<QSelectOption | null> = ref(null);
-const saveSize: Ref<QSelectOption | null> = ref(null);
+const levelOptions: QSelectOption[] = [{ label: 'Easy', value: 'easy' }, { label: 'Normal', value: 'norm' }, { label: 'Hard', value: 'hard' }, { label: 'test', value: 'test' }];
+const sizeOptions: (QSelectOption & { R: number })[] = [{ label: 'Small', value: 'small', R: 2 }, { label: 'Medium', value: 'med', R: 4 }, { label: 'Large', value: 'large', R: 8 }, { label: 'Huge', value: 'huge', R: 11 }];
+const saveSizeFromR: (QSelectOption & { R: number })[] = [];
+sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
+
+const saveLevel: Ref<QSelectOption> = ref(levelOptions[0]);
+const saveSize: Ref<QSelectOption> = ref(sizeOptions[0]);
 const saveId = ref('');
 
 function showConfirm() {
@@ -38,13 +43,10 @@ async function saveCSV() {
     method: 'POST',
     body: input.value.vals.join(','),
   };
-  await fetch(`/api/csv/${ saveSize.value }/${ saveLevel.value }/${ saveId.value }`, restInit);
+  const url = `/api/csv/${ saveSize.value?.value }/${ saveLevel?.value.value }/${ saveId.value }`;
+  console.debug(url);
+  // await fetch(url, restInit);
 }
-
-const levelOptions: QSelectOption[] = [{ label: 'Easy', value: 'easy' }, { label: 'Normal', value: 'norm' }, { label: 'Hard', value: 'hard' }, { label: 'test', value: 'test' }];
-const sizeOptions: (QSelectOption & { R: number })[] = [{ label: 'Small', value: 'small', R: 2 }, { label: 'Medium', value: 'med', R: 4 }, { label: 'Large', value: 'large', R: 8 }, { label: 'Huge', value: 'huge', R: 11 }];
-const saveSizeFromR: (QSelectOption & { R: number })[] = [];
-sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
 
 </script>
 
@@ -158,7 +160,7 @@ sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
                 <q-item-label>
                   <label for="saveSizeInput">Board size:</label>
                 </q-item-label>
-                <q-select id="saveSizeInput" v-model="saveSize" :options="sizeOptions" emit-value label="Board size"></q-select>
+                <q-select id="saveSizeInput" v-model="saveSize" :options="sizeOptions" label="Board size"></q-select>
               </q-item-section>
             </q-item>
             <q-item>
@@ -166,7 +168,7 @@ sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
                 <q-item-label>
                   <label for="saveLevelInput">Difficulty level:</label>
                 </q-item-label>
-                <q-select id="saveLevelInput" v-model="saveLevel" :options="levelOptions" emit-value label="Difficulty level"></q-select>
+                <q-select id="saveLevelInput" v-model="saveLevel" :options="levelOptions" label="Difficulty level"></q-select>
               </q-item-section>
             </q-item>
             <q-item>

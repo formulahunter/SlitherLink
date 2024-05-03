@@ -58,13 +58,13 @@ async function saveHandler (req, res) {
   const data = body;
   const { size, level, id } = req.params;
 
-  const reldir = path.join('samples', `${ size }_${ level }`);
+  const reldir = path.join('samples', size, level);
   const dirpath = path.resolve(reldir);
   // console.log('verifying directory exists:');
   // console.log(dirpath);
   await mkdir(dirpath, { recursive: true });
 
-  const relpath = path.join('samples', `${ size }_${ level }`, id + '.csv');
+  const relpath = path.join('samples', size, level, id + '.csv');
   const filepath = path.resolve(relpath);
   // console.log('saving file to path: ');
   // console.log(filepath);
