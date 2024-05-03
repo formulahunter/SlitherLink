@@ -26,7 +26,7 @@ const dStr = computed(() => {
 </script>
 
 <template>
-  <g>
+  <g :tabindex="cell.id + 1">
     <path :d="dStr" :fill="focused ? '#ccccccb0' : '#eeeeeeb0'" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)"
           :data-verts="cell.v.map(v => v.id)"/>
     <text v-if="count !== undefined" class="count" :x="cell.uv[0]" :y="cell.uv[1]" fill="black">

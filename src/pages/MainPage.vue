@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import SVGGameBoard from 'components/SVGGameBoard.vue';
+import { QSelectOption } from 'quasar';
 import { useStore } from 'src/model';
-import { computed, ref } from 'vue';
+import { computed, Ref, ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
@@ -23,10 +24,15 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
 const confirmSave = ref(false);
 const confirmClear = ref(false);
 
-const saveLevel = ref('');
-const saveSize = ref('');
+const saveLevel: Ref<QSelectOption | null> = ref(null);
+const saveSize: Ref<QSelectOption | null> = ref(null);
 const saveId = ref('');
 
+function showConfirm() {
+  saveSize.value = saveSizeFromR[models.R.value];
+  saveLevel.value = levelOptions[3];
+  confirmSave.value = true;
+}
 async function saveCSV() {
   const restInit = {
     method: 'POST',
@@ -35,9 +41,10 @@ async function saveCSV() {
   await fetch(`/api/csv/${ saveSize.value }/${ saveLevel.value }/${ saveId.value }`, restInit);
 }
 
-const saveLevelValues = [{ label: 'Easy', value: 'easy' }, { label: 'Normal', value: 'norm' }, { label: 'Hard', value: 'hard' }, { label: 'test', value: 'test' }];
-const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'med' }, { label: 'Large', value: 'large' }, { label: 'Huge', value: 'huge' }];
-
+const levelOptions: QSelectOption[] = [{ label: 'Easy', value: 'easy' }, { label: 'Normal', value: 'norm' }, { label: 'Hard', value: 'hard' }, { label: 'test', value: 'test' }];
+const sizeOptions: (QSelectOption & { R: number })[] = [{ label: 'Small', value: 'small', R: 2 }, { label: 'Medium', value: 'med', R: 4 }, { label: 'Large', value: 'large', R: 8 }, { label: 'Huge', value: 'huge', R: 11 }];
+const saveSizeFromR: (QSelectOption & { R: number })[] = [];
+sizeOptions.forEach(opt => saveSizeFromR[opt.R] = opt);
 
 </script>
 
@@ -124,7 +131,7 @@ const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', v
               <q-card-actions>
                 <q-btn label="Clear" @click="confirmClear = true" />
                 <q-space />
-                <q-btn label="Save" @click="confirmSave = true" color="primary" :disabled="inputValCount === 0" />
+                <q-btn label="Save" @click="showConfirm()" color="primary" :disabled="inputValCount === 0" />
               </q-card-actions>
             </q-card>
           </q-expansion-item>
@@ -138,7 +145,7 @@ const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', v
       </div>
     </div>
 
-    <q-dialog v-model="confirmSave" persistent>
+    <q-dialog v-model="confirmSave" no-backdrop-dismiss>
       <q-card style="min-width: 350px">
         <q-card-section>
           <div class="text-h6">File details:</div>
@@ -151,7 +158,7 @@ const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', v
                 <q-item-label>
                   <label for="saveSizeInput">Board size:</label>
                 </q-item-label>
-                <q-select id="saveSizeInput" v-model="saveSize" :options="saveSizeValues" emit-value label="Board size"></q-select>
+                <q-select id="saveSizeInput" v-model="saveSize" :options="sizeOptions" emit-value label="Board size"></q-select>
               </q-item-section>
             </q-item>
             <q-item>
@@ -159,7 +166,7 @@ const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', v
                 <q-item-label>
                   <label for="saveLevelInput">Difficulty level:</label>
                 </q-item-label>
-                <q-select id="saveLevelInput" v-model="saveLevel" :options="saveLevelValues" emit-value label="Difficulty level"></q-select>
+                <q-select id="saveLevelInput" v-model="saveLevel" :options="levelOptions" emit-value label="Difficulty level"></q-select>
               </q-item-section>
             </q-item>
             <q-item>
@@ -167,7 +174,7 @@ const saveSizeValues = [{ label: 'Small', value: 'small' }, { label: 'Medium', v
                 <q-item-label>
                   <label for="saveIdInput">Puzzle id:</label>
                 </q-item-label>
-                <q-input id="saveIdInput" v-model="saveId"></q-input>
+                <q-input id="saveIdInput" v-model="saveId" autofocus></q-input>
               </q-item-section>
             </q-item>
           </q-list>
