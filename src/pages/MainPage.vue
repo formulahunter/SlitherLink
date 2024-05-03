@@ -7,8 +7,7 @@ defineOptions({
   name: 'MainPage',
 });
 
-const store = useStore();
-const { backdrop: bd, models } = store;
+const { bd, models } = useStore();
 
 const navMenu = ref({
   structure: false,
@@ -72,30 +71,30 @@ const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="nu0_input">&nu;<sub>0</sub>: {{ models.nu0 }}</label>
+                        <label for="nu0_input">&nu;<sub>0</sub>: {{ bd.models.nu0 }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="nu0_input" v-model="models.nu0.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
+                        <q-slider id="nu0_input" v-model="bd.models.nu0.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="nud_input">&nu;<sub>d</sub>: {{ models.nud }}</label>
+                        <label for="nud_input">&nu;<sub>d</sub>: {{ bd.models.nud }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="nud_input" v-model="models.nud.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
+                        <q-slider id="nud_input" v-model="bd.models.nud.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="mur_input">&mu;<sub>r</sub>: {{ models.mur }}</label>
+                        <label for="mur_input">&mu;<sub>r</sub>: {{ bd.models.mur }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="mur_input" v-model="models.mur.value" :min="-bd.size.value.width" :max="bd.size.value.width" :step="1" markers />
+                        <q-slider id="mur_input" v-model="bd.models.mur.value" :min="-bd.size.value.width" :max="bd.size.value.width" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
