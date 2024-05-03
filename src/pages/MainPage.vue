@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import SVGGameBoard from 'components/SVGGameBoard.vue';
-import { initBoard } from 'src/model';
-import { computed, Ref, ref, watchEffect } from 'vue';
+import { useStore } from 'src/model';
+import { ref } from 'vue';
 
 defineOptions({
   name: 'MainPage',
 });
+
+const store = useStore();
+const { backdrop: bd, models } = store;
 
 const navMenu = ref({
   structure: false,
@@ -14,50 +17,7 @@ const navMenu = ref({
   appearance: false,
 });
 
-const radius = ref(4);
 const radiusLabels = {0: '0', 2: '2', 4: '4', 6: '6'};
-
-const board = computed(() => {
-  return initBoard(radius.value);
-});
-
-const bdFile: Ref<File | null> = ref(null);
-const bdDatums = ref({ nu0: Number.NaN, nud: Number.NaN, mur: Number.NaN });
-const bdSize: Ref<[number, number]> = ref([0, 0]);
-const bdHref = computed(() => {
-  if(bdFile.value === null) {
-    return '';
-  }
-  return URL.createObjectURL(bdFile.value);
-});
-watchEffect((onCleanup) => {
-  const newVal = bdHref.value;
-  if(newVal === '') {
-    bdSize.value = [0, 0];
-    return;
-  }
-  onCleanup(() => URL.revokeObjectURL(newVal));
-
-  const img = new Image();
-  img.onload = () => {
-    console.log(img.width, img.height);
-    bdSize.value = [img.width, img.height];
-  };
-  img.src = newVal;
-});
-
-const bdPropData = computed(() => {
-  if(bdFile.value === null) {
-    return null;
-  }
-
-  return {
-    file: bdFile.value,
-    size: bdSize.value,
-    href: bdHref.value,
-    datums: bdDatums.value,
-  };
-})
 
 </script>
 
@@ -65,7 +25,7 @@ const bdPropData = computed(() => {
   <q-page class="q-pa-md">
     <div class="row page-row items-stretch justify-between">
       <div class="col view">
-        <SVGGameBoard :structure="board" :backdrop="bdPropData" />
+        <SVGGameBoard />
       </div>
       <div class="col-auto inputs">
         <q-list bordered>
@@ -73,10 +33,10 @@ const bdPropData = computed(() => {
             <q-card flat>
               <q-card-section>
                 <div class="row justify-start">
-                  <label for="radius_input">Radius: {{ radius }}</label>
+                  <label for="radius_input">Radius: {{ models.R }}</label>
                 </div>
                 <div class="row justify-end">
-                  <q-slider id="radius_input" v-model="radius" :min="0" :max="6" :step="1" snap label markers
+                  <q-slider id="radius_input" v-model="models.R.value" :min="0" :max="6" :step="1" snap label markers
                             :marker-labels="radiusLabels" class="radius-input"/>
                 </div>
               </q-card-section>
@@ -92,7 +52,7 @@ const bdPropData = computed(() => {
                         <label for="backdrop_input">Backdrop file:</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-file id="backdrop_input" v-model="bdFile" filled name="backdrop" accept="image/*"
+                        <q-file id="backdrop_input" v-model="bd.file.value" filled name="backdrop" accept="image/*"
                                 label="Choose photo"/>
                       </div>
                     </q-item-section>
@@ -100,7 +60,7 @@ const bdPropData = computed(() => {
                 </q-list>
               </q-card-section>
               <q-separator inset />
-              <q-card-section v-if="bdFile !== null">
+              <q-card-section v-if="bd.file.value !== null">
                 <q-list>
                   <q-item>
                     <q-item-section>
@@ -112,30 +72,30 @@ const bdPropData = computed(() => {
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="bd_nu0_input">&nu;<sub>0</sub>: {{ bdDatums.nu0 }}</label>
+                        <label for="nu0_input">&nu;<sub>0</sub>: {{ models.nu0 }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="bd_nu0_input" v-model="bdDatums.nu0" :min="-bdSize[1]" :max="bdSize[1]" :step="1" markers />
+                        <q-slider id="nu0_input" v-model="models.nu0.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="bd_nud_input">&nu;<sub>d</sub>: {{ bdDatums.nud }}</label>
+                        <label for="nud_input">&nu;<sub>d</sub>: {{ models.nud }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="bd_nud_input" v-model="bdDatums.nud" :min="-bdSize[1]" :max="bdSize[1]" :step="1" markers />
+                        <q-slider id="nud_input" v-model="models.nud.value" :min="-bd.size.value.height" :max="bd.size.value.height" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
                   <q-item>
                     <q-item-section>
                       <q-item-label>
-                        <label for="bd_mur_input">&mu;<sub>r</sub>: {{ bdDatums.mur }}</label>
+                        <label for="mur_input">&mu;<sub>r</sub>: {{ models.mur }}</label>
                       </q-item-label>
                       <div class="row justify-end">
-                        <q-slider id="bd_mur_input" v-model="bdDatums.mur" :min="-bdSize[0]" :max="bdSize[0]" :step="1" markers />
+                        <q-slider id="mur_input" v-model="models.mur.value" :min="-bd.size.value.width" :max="bd.size.value.width" :step="1" markers />
                       </div>
                     </q-item-section>
                   </q-item>
