@@ -2,44 +2,24 @@
 import SVGCell from 'components/SVGCell.vue';
 import SVGLine from 'components/SVGLine.vue';
 import { useStore } from 'src/model';
+import { Ref, ref } from 'vue';
 
 defineOptions({
   name: 'SVGGameBoard'
 });
 
-const cellRadius = 0.98;
-
 const { game, data, view } = useStore();
 const { backdrop: bd, global, svg } = view;
 
-let keyLock: string | false = false;
+const cells: Ref<(InstanceType<typeof SVGCell> | null)[]> = ref([]);
 
-function setCellCount(ev: KeyboardEvent) {
-  if(keyLock) {
-    return false;
-  }
-  keyLock = ev.key;
-
-  const val = Number(ev.key);
-  if(!Number.isNaN(val) && val < 6) {
-    data.input.vals.value[data.input.ind.value] = val;
-  }
-  else if(ev.key === 'Backspace' || ev.key === 'Delete') {
-    delete data.input.vals.value[data.input.ind.value];
-  }
-}
-function advanceCell(ev: KeyboardEvent) {
-  if(keyLock && ev.key !== keyLock) {
-    return false;
-  }
-  keyLock = false;
-
-  //  enter/tab ==> next
+function advanceCell(ev: KeyboardEvent, currentId: number) {
+  //  enter ==> next
   //    +shift ==> prev
   //  delete ==> clear & next
   //  backspace ==> clear & prev
   if(ev.key.startsWith('Arrow')) {
-    const c = game.struct.value.cells[data.input.ind.value];
+    const c = game.struct.value.cells[currentId]
     let n;
     if(ev.key === 'ArrowDown') {
       n = c.n[4] || c.n[5];
@@ -70,19 +50,27 @@ function advanceCell(ev: KeyboardEvent) {
       data.input.ind.value = 0;
     }
   }
+
+  const newComp = cells.value.find(inst => inst !== null && inst.cell.id === data.input.ind.value);
+  if(!newComp) {
+    console.warn('native HTML focus not applied -- new cell index has been set in internal reactive state, but unable to identify the corresponding component ref');
+    return;
+  }
+  newComp.focus();
 }
 
 </script>
 
 <template>
   <div>
-    <svg :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => global.pan.start()" @mouseup="() => global.pan.stop()" @mousemove="(ev) => global.pan.update(ev)" @wheel.prevent="(ev) => global.zoom.update(ev)">
+<!--    <svg :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5.enter.tab.delete.up.down.left.right="advanceCell" @mousedown="() => global.pan.start()" @mouseup="() => global.pan.stop()" @mousemove="(ev) => global.pan.update(ev)" @wheel.prevent="(ev) => global.zoom.update(ev)">-->
+    <svg :viewBox="svg.vbStr.value" xmlns="http://www.w3.org/2000/svg" :tabindex="0" @mousedown="() => global.pan.start()" @mouseup="() => global.pan.stop()" @mousemove="(ev) => global.pan.update(ev)" @wheel.prevent="(ev) => global.zoom.update(ev)">
       <g :transform="global.transformStr.value">
         <g :transform="bd.originStr.value">
           <image v-if="bd.href.value !== ''" :href="bd.href.value" :transform="bd.alignStr.value"/>
         </g>
-        <SVGCell v-for="c of game.struct.value.cells" :cell="c" :r="cellRadius" :count="data.input.vals.value[c.id]" :focused="c.id === data.input.ind.value" :key="c.id" />
-        <SVGLine v-for="l of game.struct.value.lines" :line="l" :focused="l.c.map(c => c?.id).includes(data.input.ind.value)" :key="l.id" />
+        <SVGCell v-for="c of game.struct.value.cells" :key="c.id" ref="cells" :id="c.id" @keyboardNav="advanceCell" />
+        <SVGLine v-for="l of game.struct.value.lines" :line="l" :key="l.id" />
       </g>
     </svg>
   </div>

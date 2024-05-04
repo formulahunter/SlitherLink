@@ -7,7 +7,7 @@ import { ref } from 'vue';
 const radius = ref(4);
 const game = useGame(radius);
 const view = useSVGView(radius);
-const data = useRawData(() => game.struct.value.const.C);
+const data = useRawData(game.struct);
 
 export function useStore() {
   return {
