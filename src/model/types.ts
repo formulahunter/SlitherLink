@@ -68,8 +68,19 @@ export interface GameStruct {
   };
   verts: GameVert[];
   lines: GameLine[];
-  cells: GameCell[];
-  grid: number[][];
+  cells: {
+    rowMajor: GameCell[];
+    colMajor: GameCell[];
+  };
+  grid: {
+    rows: number[][];
+    cols: number[][];
+  };
+  coords: {
+    isOnBoard(ij: Coord): boolean;
+    toNom(ij: Coord): Coord;
+    fromNom(uv: Coord): Coord;
+  };
 }
 
 /** data representing the point-in-time state of the game board */

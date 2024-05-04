@@ -132,33 +132,35 @@ export function initBoard(R: number): GameStruct {
   const lines: GameLine[] = [];
 
   /** flat, dense array of cell objects; indexed by id */
-  const cells: GameCell[] = [];
+  const cellsRowMajor: GameCell[] = [];
+  const cellsColMajor: GameCell[] = [];
 
   /** cell ids by grid position (i, j); indexed as grid[j][i] */
-  const grid: number[][] = new Array(H);
+  const gridRows: number[][] = new Array(H);
+  const gridCols: number[][] = new Array(W);
 
   for(let j = 0; j < H; j++) {
-    grid[j] = new Array(W);
+    gridRows[j] = new Array(W);
     for(let i = 0; i < W; i++) {
       const gridCoord: Coord = [i, j];
       if(!isOnBoard(gridCoord)) {
-        grid[j][i] = -1;
+        gridRows[j][i] = -1;
         continue;
       }
 
-      const cid = cells.length;
+      const cid = cellsRowMajor.length;
       const c = initCell(cid, gridCoord);
       c.coord = gridCoord;
       c.uv = toNom(gridCoord);
-      cells[cid] = c;
-      grid[j][i] = cid;
+      cellsRowMajor[cid] = c;
+      gridRows[j][i] = cid;
 
       //  get/define all cell neighbors, lines, & vertices
       const nomCoord = toNom(gridCoord);
 
-      const n1 = j > 0 && grid[j - 1][i] >= 0 && cells[grid[j - 1][i]];
-      const n2 = j > 0 && grid[j - 1][i + 1] >= 0 && cells[grid[j - 1][i + 1]];
-      const n0 = i > 0 && grid[j][i - 1] >= 0 && cells[grid[j][i - 1]];
+      const n1 = j > 0 && gridRows[j - 1][i] >= 0 && cellsRowMajor[gridRows[j - 1][i]];
+      const n2 = j > 0 && gridRows[j - 1][i + 1] >= 0 && cellsRowMajor[gridRows[j - 1][i + 1]];
+      const n0 = i > 0 && gridRows[j][i - 1] >= 0 && cellsRowMajor[gridRows[j][i - 1]];
       if(n1) {
         //  define n1 & reciprocal
         c.n[1] = n1;
@@ -311,12 +313,35 @@ export function initBoard(R: number): GameStruct {
     }
   }
 
+  for(let i = 0; i < W; i++) {
+    gridCols[i] = new Array(H);
+    for(let j = 0; j < H; j++) {
+      const cid = gridRows[j][i];
+      gridCols[i][j] = cid;
+      if(cid === undefined || cid < 0) {
+        continue;
+      }
+      cellsColMajor.push(cellsRowMajor[cid]);
+    }
+  }
+
   return {
     R,
     const: { D, S, W, H, G, C, L, V },
     verts,
     lines,
-    cells,
-    grid,
+    cells: {
+      rowMajor: cellsRowMajor,
+      colMajor: cellsColMajor,
+    },
+    grid: {
+      rows: gridRows,
+      cols: gridCols,
+    },
+    coords: {
+      isOnBoard,
+      toNom,
+      fromNom,
+    },
   };
 }

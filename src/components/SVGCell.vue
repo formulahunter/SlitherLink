@@ -18,7 +18,7 @@ const emit = defineEmits<{
 const { data: { input }, game } = useStore();
 
 const cell = computed(() => {
-  return game.struct.value.cells[props.id];
+  return game.struct.value.cells.rowMajor[props.id];
 });
 const count = computed(() => {
   return input.vals.value[props.id];
@@ -111,12 +111,12 @@ function initKeyNav(ev: KeyboardEvent) {
   emit('keyboardNav', ev, props.id);
 }
 
-defineExpose({ cell, focus, hasFocus });
+defineExpose({ id: props.id, focus, hasFocus });
 
 </script>
 
 <template>
-  <g ref="cellRoot" class="cell" :data-id="cell.id" @click="focus" :tabindex="cell.id + 1" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5="releaseKey" @keydown.enter.tab.delete.up.down.left.right.stop.prevent="initKeyNav">
+  <g ref="cellRoot" class="cell" :data-id="cell.id" @click="focus" :tabindex="cell.id + 1" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5.delete="releaseKey" @keydown.enter.tab.up.down.left.right.stop.prevent="initKeyNav">
     <path :d="dStr" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)"
           :data-verts="cell.v.map(v => v.id)"/>
     <text v-if="count !== undefined" class="count" :x="cell.uv[0]" :y="cell.uv[1]">

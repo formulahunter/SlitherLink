@@ -42,10 +42,10 @@ async function saveCSV() {
   const { grid } = game.struct.value;
 
   let csvStr = '';
-  for(let j = 0; j < grid.length; j++) {
-    csvStr += (data.input.vals.value[grid[j][0]] || ' ');
-    for(let i = 1; i < grid[j].length; i++) {
-      csvStr += ',' + (data.input.vals.value[grid[j][i]] || ' ');
+  for(let j = 0; j < grid.rows.length; j++) {
+    csvStr += (data.input.vals.value[grid.rows[j][0]] || ' ');
+    for(let i = 1; i < grid.rows[j].length; i++) {
+      csvStr += ',' + (data.input.vals.value[grid.rows[j][i]] || ' ');
     }
     csvStr += '\n';
   }
