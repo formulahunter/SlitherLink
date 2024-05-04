@@ -18,19 +18,20 @@ function advanceCell(ev: KeyboardEvent, currentId: number) {
   //    +shift ==> prev
   //  delete ==> clear & next
   //  backspace ==> clear & prev
-  if(ev.key.startsWith('Arrow')) {
+  const key = ev.key;
+  if(key.startsWith('Arrow')) {
     const c = game.struct.value.cells[currentId]
     let n;
-    if(ev.key === 'ArrowDown') {
+    if(key === 'ArrowDown') {
       n = c.n[4] || c.n[5];
     }
-    else if(ev.key === 'ArrowUp') {
+    else if(key === 'ArrowUp') {
       n = c.n[1] || c.n[2];
     }
-    else if(ev.key === 'ArrowRight') {
+    else if(key === 'ArrowRight') {
       n = c.n[3] || c.n[4] || c.n[2];
     }
-    else if(ev.key === 'ArrowLeft') {
+    else if(key === 'ArrowLeft') {
       n = c.n[0] || c.n[1] || c.n[5];
     }
 
@@ -38,7 +39,7 @@ function advanceCell(ev: KeyboardEvent, currentId: number) {
       data.input.ind.value = n.id;
     }
   }
-  else if(ev.key === 'Backspace' || ev.shiftKey) {
+  else if(key === 'Backspace' || ev.shiftKey) {
     data.input.ind.value--;
     if(data.input.ind.value < 0) {
       data.input.ind.value = data.input.vals.value.length - 1;
