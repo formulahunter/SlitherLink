@@ -12,16 +12,17 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  keyboardNav: [ ev: KeyboardEvent, currentId: number ];
+  keyboardNav: [ targetId: number ];
 }>();
 
-const { data: { input }, game } = useStore();
+const { data, game } = useStore();
+const { nav: { initKeyNav, releaseKey } } = data;
 
 const cell = computed(() => {
   return game.struct.value.cells.rowMajor[props.id];
 });
 const count = computed(() => {
-  return input.vals.value[props.id];
+  return data.vals.value[props.id];
 });
 
 const dStr = computed(() => {
@@ -33,82 +34,25 @@ const dStr = computed(() => {
   return d;
 });
 
-const hasFocus = computed(() => cellRoot.value !== null && document.activeElement === cellRoot.value);
-
 const cellRoot: Ref<SVGGElement | null> = ref(null);
+const hasFocus = computed(() => cellRoot.value !== null && document.activeElement === cellRoot.value);
 function focus() {
   if(cellRoot.value === null) {
     return;
   }
   cellRoot.value.focus();
 
-  if(input.ind.value !== props.id) {
-    input.ind.value = props.id;
+  if(data.ind.value !== props.id) {
+    data.ind.value = props.id;
   }
   console.log('focused: ' + props.id);
 }
 
-const keyIsDown = {
-  '0': false,
-  '1': false,
-  '2': false,
-  '3': false,
-  '4': false,
-  '5': false,
-  'Delete': false,
-  'Backspace': false
-};
-type CellCountKey = keyof typeof keyIsDown;
-function isCellCountKey(key: string): key is CellCountKey {
-  return key in keyIsDown;
-}
-function setCellCount(ev: KeyboardEvent) {
-  const key = ev.key;
-  if(!isCellCountKey(key)) {
-    console.warn('cell count setter triggered by unexpected keyboard key: ' + key);
-    return;
+function processNavEvent(ev: KeyboardEvent) {
+  const targetId = initKeyNav(ev, props.id);
+  if(targetId !== undefined) {
+    emit('keyboardNav', targetId);
   }
-
-  if(keyIsDown[key]) {
-    return;
-  }
-  keyIsDown[key] = true;
-
-  const cellG = ev.currentTarget;
-  if(!(cellG instanceof SVGGElement)) {
-    console.warn('event %o has unexpected `currentTarget` %o', ev, cellG);
-    return;
-  }
-
-  if(key === 'Backspace' || key === 'Delete') {
-    delete input.vals.value[input.ind.value];
-  }
-  else {
-    const newCount = Number(key);
-    if(Number.isNaN(newCount) || newCount > 5) {
-      return;
-    }
-
-    if(cellG.dataset.id === undefined || input.ind.value !== Number.parseInt(cellG.dataset.id)) {
-      console.warn('mismatch of focused cell:');
-      console.info(`  internal reactive state: ${ input.ind.value }`);
-      console.log(`  DOM/SVG element configuration: ${ cellG.dataset.id }`);
-    }
-    input.vals.value[input.ind.value] = newCount;
-  }
-  initKeyNav(ev);
-}
-function releaseKey(ev: KeyboardEvent) {
-  const key = ev.key;
-  if(!isCellCountKey(key)) {
-    console.warn('cell count setter triggered by unexpected keyboard key: ' + key);
-    return;
-  }
-  keyIsDown[key] = false;
-}
-
-function initKeyNav(ev: KeyboardEvent) {
-  emit('keyboardNav', ev, props.id);
 }
 
 defineExpose({ id: props.id, focus, hasFocus });
@@ -116,8 +60,8 @@ defineExpose({ id: props.id, focus, hasFocus });
 </script>
 
 <template>
-  <g ref="cellRoot" class="cell" :data-id="cell.id" @click="focus" :tabindex="cell.id + 1" @keydown.0.1.2.3.4.5.delete="setCellCount" @keyup.0.1.2.3.4.5.delete="releaseKey" @keydown.enter.tab.up.down.left.right.stop.prevent="initKeyNav">
-    <path :d="dStr" :data-id="cell.id" :data-lines="cell.l.map(l => l.id)"
+  <g ref="cellRoot" class="cell" :data-id="id" @click="focus" :tabindex="id + 1" @keydown.0.1.2.3.4.5.delete.enter.tab.up.down.left.right.stop.prevent="processNavEvent" @keyup.0.1.2.3.4.5.delete.enter.tab.up.down.left.right.stop.prevent="releaseKey">
+    <path :d="dStr" :data-id="id" :data-lines="cell.l.map(l => l.id)"
           :data-verts="cell.v.map(v => v.id)"/>
     <text v-if="count !== undefined" class="count" :x="cell.uv[0]" :y="cell.uv[1]">
       {{ count }}

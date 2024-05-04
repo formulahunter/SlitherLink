@@ -10,7 +10,7 @@ defineOptions({
 
 const { view: { backdrop: bd }, game, data, models } = useStore();
 
-const inputValCount = computed(() => data.input.vals.value.filter(v => typeof v === 'number').length);
+const inputValCount = computed(() => data.vals.value.filter(v => typeof v === 'number').length);
 
 const navMenu = ref({
   structure: false,
@@ -43,9 +43,9 @@ async function saveCSV() {
 
   let csvStr = '';
   for(let j = 0; j < grid.rows.length; j++) {
-    csvStr += (data.input.vals.value[grid.rows[j][0]] || ' ');
+    csvStr += (data.vals.value[grid.rows[j][0]] || ' ');
     for(let i = 1; i < grid.rows[j].length; i++) {
-      csvStr += ',' + (data.input.vals.value[grid.rows[j][i]] || ' ');
+      csvStr += ',' + (data.vals.value[grid.rows[j][i]] || ' ');
     }
     csvStr += '\n';
   }
@@ -62,10 +62,10 @@ function showConfirmClear() {
 }
 function clearInputData() {
   console.log('clearing input data');
-  for(let i = 0; i < data.input.vals.value.length; i++) {
-    delete data.input.vals.value[i];
+  for(let i = 0; i < data.vals.value.length; i++) {
+    delete data.vals.value[i];
   }
-  data.input.ind.value = 0;
+  data.ind.value = 0;
   saveId.value = '';
 }
 
@@ -229,18 +229,12 @@ function clearInputData() {
 .q-page
   max-height: 80vh
   margin: 0
-  //background: rgba(#000, 0.25)
-  //overflow
-.page-row
-  //background: rgba(#000, 0.25)
 
 .view
   width: 60%
   padding: 1rem
 .inputs
   padding: 2rem
-.view, .inputs
-  //background: rgba(#000, 0.25)
 .view + .inputs
   border-left: 2pt solid black
 
