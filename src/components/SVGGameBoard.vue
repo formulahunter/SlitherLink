@@ -8,7 +8,7 @@ defineOptions({
   name: 'SVGGameBoard'
 });
 
-const { game, data, view } = useStore();
+const { game, view } = useStore();
 const { backdrop: bd, global, svg } = view;
 
 const cells: Ref<(InstanceType<typeof SVGCell> | null)[]> = ref([]);
@@ -58,15 +58,25 @@ function isNavKey(key: string): key is keyof typeof NAV_KEY {
     return key in NAV_KEY;
 }
 
-const keyDirMap = new Map<NAV_KEY, (NAV_DIR | ((shiftKey?: boolean) => NAV_DIR))>([
+const keyDirMap = new Map<NAV_KEY, NAV_DIR>([
   [ NAV_KEY.ArrowUp, NAV_DIR.Up ],
   [ NAV_KEY.ArrowDown, NAV_DIR.Down ],
   [ NAV_KEY.ArrowLeft, NAV_DIR.Left ],
   [ NAV_KEY.ArrowRight, NAV_DIR.Right ],
   [ NAV_KEY.Delete, NAV_DIR.Right ],
   [ NAV_KEY.Backspace, NAV_DIR.Left ],
-  [ NAV_KEY.Tab, (shiftKey?: boolean): NAV_DIR => shiftKey ? NAV_DIR.Left : NAV_DIR.Right ],
-  [ NAV_KEY.Enter, (shiftKey?: boolean): NAV_DIR => shiftKey ? NAV_DIR.Up : NAV_DIR.Down ],
+  [ NAV_KEY.Tab, NAV_DIR.Right ],
+  [ NAV_KEY.Enter, NAV_DIR.Down ],
+]);
+const keyDirMapShiftRev = new Map<NAV_KEY, NAV_DIR>([
+  [ NAV_KEY.ArrowUp, NAV_DIR.Up ],
+  [ NAV_KEY.ArrowDown, NAV_DIR.Down ],
+  [ NAV_KEY.ArrowLeft, NAV_DIR.Left ],
+  [ NAV_KEY.ArrowRight, NAV_DIR.Right ],
+  [ NAV_KEY.Delete, NAV_DIR.Right ],
+  [ NAV_KEY.Backspace, NAV_DIR.Left ],
+  [ NAV_KEY.Tab, NAV_DIR.Left ],
+  [ NAV_KEY.Enter, NAV_DIR.Up ],
 ]);
 
 
@@ -81,181 +91,63 @@ function walkBoard(ev: KeyboardEvent, currentId: number) {
   //  "prev"  (-i): left, shift+tab, backspace
   //  "below" (+j): down + enter
   //  "above" (-j): up, shift+enter
-  const key = { name: '', val: Number.NaN };
-  {
-    const keyName = ev.key;
-    if(!isNavKey(keyName)) {
-      return;
-    }
-    key.name = keyName;
-    key.val = NAV_KEY[keyName];
-  }
 
-  const maybeDir = keyDirMap.get(key.val);
-  if(maybeDir === undefined) {
-    return;
-  }
-  const dir = typeof maybeDir === 'function' ? maybeDir(ev.shiftKey) : maybeDir;
-
-  //  initially assume far from borders and wrapping is irrelevant
+  //  initially assume far from borders, so wrapping is irrelevant
   //  use grid coordinates and/or neighbor references to identify next focus target
   //  if coords out of bounds/neighbor refs undefined:
   //  - if wrapping, use row/col major cell arrays
   //  - else check grid/neighbors adjacent to NAV_DIR
 
+  const keyName = ev.key;
+  if(!isNavKey(keyName)) {
+    return;
+  }
+  const key = NAV_KEY[keyName];
+
+  const dirMap = ev.shiftKey ? keyDirMapShiftRev : keyDirMap;
+  const dir = dirMap.get(key);
+  if(dir === undefined) {
+    return;
+  }
+
   const axis = dir & 0b01;
-  const sign = (dir & 0b10) - 1;  //  operator precedence makes parenthesis necessary
+  const parity = dir & 0b10;
+  const sign = parity - 1;
+
+  const indN = axis + parity * 1.5;
 
   const c = game.struct.value.cells.rowMajor[currentId];
+  let newId = c.n[indN]?.id;
 
-  let n;
-  switch(dir) {
-    case NAV_DIR.Up:
-      n = c.n[1];
-      break;
-    case NAV_DIR.Down:
-      n = c.n[4];
-      break;
-    case NAV_DIR.Left:
-      n = c.n[0];
-      break;
-    case NAV_DIR.Right:
-      n = c.n[3];
-      break;
-    default:
-      throw new Error('invalid nav direction: ' + dir);
-  }
+  if(newId === undefined) {
+    const wrap = key > NAV_KEY.ArrowDown;
 
-  const wrap = key.val > NAV_KEY.ArrowDown;
+    const dij = [0, 0];
+    dij[axis] = sign;
+    const ij: [number, number] = [c.coord[0], c.coord[1]];
+    ij[axis] += sign;
 
-  const dij = [0, 0];
-  dij[axis] = sign;
-  const ij: [number, number] = [c.coord[0], c.coord[1]];
-  ij[axis] += sign;
-
-  const { colMajor: colMaj, rowMajor: rowMaj } = game.struct.value.cells;
-  let newId;
-  if(n === undefined) {
+    const { colMajor: colMaj, rowMajor: rowMaj } = game.struct.value.cells;
     if(wrap) {
-      //  horizontal is simple -- just incrementing cell index/id
-      //  vertical has been simplified by a new "column-major" cells array
-      if(axis === 0) {
-        const rowMajInd = rowMaj.indexOf(c);
-        let newInd = rowMajInd + sign;
-        if(newInd >= rowMaj.length) {
-          newInd = 0;
-        }
-        else if(newInd < 0) {
-          newInd = rowMaj.length - 1;
-        }
-        newId = rowMaj[newInd].id;
+      const cellsArray = axis === 0 ? rowMaj : colMaj;
+      let ind = cellsArray.indexOf(c) + sign;
+      if(ind >= cellsArray.length) {
+        ind = 0;
       }
-      else if(axis === 1) {
-        const colMajInd = colMaj.indexOf(c);
-        let newInd = colMajInd + sign;
-        if(newInd >= colMaj.length) {
-          newInd = 0;
-        }
-        else if(newInd < 0) {
-          newInd = colMaj.length - 1;
-        }
-        newId = colMaj[newInd].id;
+      else if(ind < 0) {
+        ind = cellsArray.length - 1;
       }
+      newId = cellsArray[ind].id;
     }
     else {
-
-    }
-  }
-
-
-  switch(dir) {
-    case NAV_DIR.Left:
-      newId = currentId - 1;
-      if(wrap) {
-        if(newId < 0) {
-          newId = game.struct.value.cells.rowMajor.length - 1;
-        }
-      }
-      else {
-        n = c.n[0] || c.n[1] || c.n[5];
-        if(n !== undefined) {
-          newId = n.id;
-        }
-      }
-      break;
-    case NAV_DIR.Up:
-
-      break;
-    case NAV_DIR.Right:
-
-      break;
-    case NAV_DIR.Down:
-
-  }
-  if(dir === NAV_DIR.Left) {
-    newId = currentId - 1;
-    if(wrap) {
-      if(newId < 0) {
-        newId = game.struct.value.cells.rowMajor.length - 1;
-      }
-    }
-    else {
-      n = c.n[0] || c.n[1] || c.n[5];
-      if(n !== undefined) {
-        newId = n.id;
+      newId = c.n[indN + 1]?.id;
+      if(newId === undefined && axis === 0) {
+        newId = c.n[(indN + 5) % 6]?.id;
       }
     }
   }
-  else if(dir === NAV_DIR.Right) {
 
-  }
-  else if(key.name === 'ArrowRight' || key.name === 'Delete' || key.name === 'Tab') {
-    ij[0]++;
-    n = c.n[3] || c.n[4] || c.n[2];
-  }
-  else if(key.name === 'ArrowUp' || (key.name === 'Enter' && ev.shiftKey)) {
-    ij[1]--;
-    n = c.n[1] || c.n[2];
-  }
-  else if(key.name === 'ArrowDown' || key.name == 'Enter') {
-    ij[1]++;
-    n = c.n[4] || c.n[5];
-  }
-
-  if(key.val <= NAV_KEY.ArrowDown) {
-    const c = game.struct.value.cells.rowMajor[currentId]
-    let n;
-    if(key.val === NAV_KEY.ArrowDown) {
-      n = c.n[4] || c.n[5];
-    }
-    else if(key.val === NAV_KEY.ArrowUp) {
-      n = c.n[1] || c.n[2];
-    }
-    else if(key.val === NAV_KEY.ArrowRight) {
-      n = c.n[3] || c.n[4] || c.n[2];
-    }
-    else if(key.val === NAV_KEY.ArrowLeft) {
-      n = c.n[0] || c.n[1] || c.n[5];
-    }
-
-    if(n !== undefined) {
-      data.input.ind.value = n.id;
-    }
-  }
-  else if(key.name === 'Backspace' || ev.shiftKey) {
-    data.input.ind.value--;
-    if(data.input.ind.value < 0) {
-      data.input.ind.value = data.input.vals.value.length - 1;
-    }
-  }
-  else {
-    data.input.ind.value++;
-    if(data.input.ind.value >= data.input.vals.value.length) {
-      data.input.ind.value = 0;
-    }
-  }
-
-  const newComp = cells.value.find(inst => inst !== null && inst.id === data.input.ind.value);
+  const newComp = cells.value.find(inst => inst !== null && inst.id === newId);
   if(!newComp) {
     console.warn('native HTML focus not applied -- new cell index has been set in internal reactive state, but unable to identify the corresponding component ref');
     return;
